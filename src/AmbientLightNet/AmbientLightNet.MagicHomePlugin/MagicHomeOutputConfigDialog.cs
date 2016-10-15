@@ -22,6 +22,7 @@ namespace AmbientLightNet.MagicHomePlugin
 					.Cast<object>()
 					.ToArray()
 				);
+			deviceTypesList.SelectedIndex = 0;
 		}
 
 		private void RefreshDevicesList()
