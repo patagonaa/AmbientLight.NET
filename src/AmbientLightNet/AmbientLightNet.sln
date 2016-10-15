@@ -1,0 +1,46 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.Configurator", "AmbientLightNet.Configurator\AmbientLightNet.Configurator.csproj", "{E65195F7-1173-4B13-A171-D94076CFD3C6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.Infrastructure", "AmbientLightNet.Infrastructure\AmbientLightNet.Infrastructure.csproj", "{22110CB7-D74B-4348-8FBD-146BF60E104E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.Service", "AmbientLightNet.Service\AmbientLightNet.Service.csproj", "{B861287D-B449-4EE7-8A47-0AF65EDCB710}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.MagicHomePlugin", "AmbientLightNet.MagicHomePlugin\AmbientLightNet.MagicHomePlugin.csproj", "{E8D5CDC0-FF50-4396-B7E1-1E4EAC511F18}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbiLightNet.PluginBase", "AmbiLightNet.PluginBase\AmbiLightNet.PluginBase.csproj", "{CD11574C-65F7-439A-860C-7C5A37B8D9E1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E65195F7-1173-4B13-A171-D94076CFD3C6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E65195F7-1173-4B13-A171-D94076CFD3C6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E65195F7-1173-4B13-A171-D94076CFD3C6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E65195F7-1173-4B13-A171-D94076CFD3C6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{22110CB7-D74B-4348-8FBD-146BF60E104E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{22110CB7-D74B-4348-8FBD-146BF60E104E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{22110CB7-D74B-4348-8FBD-146BF60E104E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{22110CB7-D74B-4348-8FBD-146BF60E104E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B861287D-B449-4EE7-8A47-0AF65EDCB710}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B861287D-B449-4EE7-8A47-0AF65EDCB710}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B861287D-B449-4EE7-8A47-0AF65EDCB710}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B861287D-B449-4EE7-8A47-0AF65EDCB710}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E8D5CDC0-FF50-4396-B7E1-1E4EAC511F18}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E8D5CDC0-FF50-4396-B7E1-1E4EAC511F18}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E8D5CDC0-FF50-4396-B7E1-1E4EAC511F18}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E8D5CDC0-FF50-4396-B7E1-1E4EAC511F18}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CD11574C-65F7-439A-860C-7C5A37B8D9E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CD11574C-65F7-439A-860C-7C5A37B8D9E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CD11574C-65F7-439A-860C-7C5A37B8D9E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CD11574C-65F7-439A-860C-7C5A37B8D9E1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
