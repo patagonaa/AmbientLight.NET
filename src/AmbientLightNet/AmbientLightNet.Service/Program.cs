@@ -23,7 +23,7 @@ namespace AmbientLightNet.Service
 
 			IScreenCaptureService screenCaptureService = new GdiScreenCaptureService();
 			//IColorAveragingService colorAveragingService = new GdiDownScalingAveraging(10, 10, InterpolationMode.NearestNeighbor);
-			IColorAveragingService colorAveragingService = new GdiFastPixelAveraging(50, 50);
+			IColorAveragingService colorAveragingService = new GdiFastPixelAveraging(10, 10);
 
 			AmbiLightConfig config = ReadConfig(args[0]);
 			

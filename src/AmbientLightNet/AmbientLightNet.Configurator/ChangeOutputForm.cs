@@ -10,7 +10,7 @@ namespace AmbientLightNet.Configurator
 	public partial class ChangeOutputForm : Form
 	{
 		private IOutputInfo _outputInfo;
-		private List<IOutputPlugin> _plugins;
+		private readonly List<IOutputPlugin> _plugins;
 
 		public ChangeOutputForm()
 		{
@@ -51,6 +51,8 @@ namespace AmbientLightNet.Configurator
 			var plugin = (IOutputPlugin) outputPluginsDropDown.SelectedItem;
 
 			var dialog = plugin.GetOutputConfigDialog();
+
+			dialog.OutputInfo = _outputInfo;
 
 			dialog.ShowDialog();
 

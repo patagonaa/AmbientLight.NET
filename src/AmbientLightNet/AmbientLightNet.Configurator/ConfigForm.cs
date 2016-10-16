@@ -50,11 +50,11 @@ namespace AmbientLightNet.Configurator
 			string screenName = _selectedScreen.DeviceName;
 
 			var region = new ScreenRegion { ScreenName = screenName, Rectangle = new RectangleF(0, 0, 1, 1) };
-			var capturedImage = _captureService.CaptureScreenRegions(new List<ScreenRegion> {region})[0];
+			Bitmap capturedImage = _captureService.CaptureScreenRegions(new List<ScreenRegion> {region})[0];
 
 			e.Graphics.DrawImage(capturedImage, 0, 0, e.ClipRectangle.Width, e.ClipRectangle.Height);
 
-			foreach (var screenRegionOutput in screenRegionsList.Items.Cast<ScreenRegionOutput>().Where(x => x.ScreenRegion.ScreenName == screenName))
+			foreach (ScreenRegionOutput screenRegionOutput in screenRegionsList.Items.Cast<ScreenRegionOutput>().Where(x => x.ScreenRegion.ScreenName == screenName))
 			{
 				RectangleF screenRegionRect = screenRegionOutput.ScreenRegion.Rectangle;
 				e.Graphics.DrawRectangle(Pens.Red,

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.NetworkInformation;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using AmbiLightNet.PluginBase;
 using MagicHomeController;
@@ -9,12 +11,16 @@ namespace AmbientLightNet.MagicHomePlugin
 {
 	public partial class MagicHomeOutputConfigDialog : OutputConfigDialog
 	{
+		private DeviceType _selectedType;
+		private PhysicalAddress _selectedDevice;
+
 		public MagicHomeOutputConfigDialog()
 		{
 			InitializeComponent();
 			RefreshDevicesList();
 
 			deviceTypesList.DisplayMember = "Value";
+
 			deviceTypesList.Items.AddRange(
 				Enum.GetValues(typeof (DeviceType))
 					.Cast<DeviceType>()
@@ -22,24 +28,42 @@ namespace AmbientLightNet.MagicHomePlugin
 					.Cast<object>()
 					.ToArray()
 				);
-			deviceTypesList.SelectedIndex = 0;
+
+			_selectedType = DeviceType.RgbWarmwhite;
+			_selectedDevice = null;
+		}
+
+		private void RefreshTypesList()
+		{
+			int idx = deviceTypesList.Items
+				.Cast<KeyValuePair<DeviceType, string>>()
+				.ToList()
+				.FindIndex(x => x.Key == _selectedType);
+
+			deviceTypesList.SelectedIndex = idx == -1 ? 0 : idx;
 		}
 
 		private void RefreshDevicesList()
 		{
-			IEnumerable<DeviceFindResult> devices = DeviceFinder.FindDevices();
+			var task = new Task<IEnumerable<DeviceFindResult>>(() => DeviceFinder.FindDevices().ToList());
+			task.Start();
+			refreshButton.Text = "...";
+			task.ContinueWith(tsk => this.Invoke((MethodInvoker) (() => RefreshListDone(tsk.Result))));
+		}
 
-			var oldSelected = devicesList.SelectedItem as DeviceFindResult;
+		private void RefreshListDone(IEnumerable<DeviceFindResult> devices)
+		{
+			refreshButton.Text = "Refresh";
 
 			devicesList.Items.Clear();
 			devicesList.Items.AddRange(devices.Cast<object>().ToArray());
 
-			if (oldSelected != null)
+			if (_selectedDevice != null)
 			{
 				int itemIndex = devicesList.Items
 					.Cast<DeviceFindResult>()
 					.ToList()
-					.FindIndex(x => x.MacAddress.Equals(oldSelected.MacAddress));
+					.FindIndex(x => x.MacAddress.Equals(_selectedDevice));
 				if (itemIndex != -1)
 				{
 					devicesList.SelectedIndex = itemIndex;
@@ -69,7 +93,11 @@ namespace AmbientLightNet.MagicHomePlugin
 			}
 			set
 			{
-				
+				var magicHomeOutputInfo = value as MagicHomeLedOutput;
+				if(magicHomeOutputInfo == null)
+					return;
+				_selectedType = magicHomeOutputInfo.DeviceType;
+				_selectedDevice = magicHomeOutputInfo.MacAddress;
 			}
 		}
 
@@ -88,6 +116,26 @@ namespace AmbientLightNet.MagicHomePlugin
 		private void refreshButton_Click(object sender, EventArgs e)
 		{
 			RefreshDevicesList();
+		}
+
+		private void devicesList_SelectionChangeCommitted(object sender, EventArgs e)
+		{
+			var selectedDevice = devicesList.SelectedItem as DeviceFindResult;
+
+			_selectedDevice = selectedDevice == null ? null : selectedDevice.MacAddress;
+		}
+
+		private void deviceTypesList_SelectionChangeCommitted(object sender, EventArgs e)
+		{
+			var selectedDeviceType = (KeyValuePair<DeviceType, string>) devicesList.SelectedItem;
+
+			_selectedType = selectedDeviceType.Key;
+		}
+
+		private void MagicHomeOutputConfigDialog_Load(object sender, EventArgs e)
+		{
+			RefreshDevicesList();
+			RefreshTypesList();
 		}
 	}
 }

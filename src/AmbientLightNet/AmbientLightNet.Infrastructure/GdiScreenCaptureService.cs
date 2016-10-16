@@ -77,6 +77,11 @@ namespace AmbientLightNet.Infrastructure
 
 				graphics.CopyFromScreen(positionX, positionY, 0, 0, new Size(width, height), CopyPixelOperation.SourceCopy);
 
+				if (!useCache)
+				{
+					graphics.Dispose();
+				}
+
 				bitmaps.Add(bitmap);
 			}
 
