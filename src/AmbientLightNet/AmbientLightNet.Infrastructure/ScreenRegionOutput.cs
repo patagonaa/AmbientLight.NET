@@ -37,8 +37,11 @@ namespace AmbientLightNet.Infrastructure
 		public void GetObjectData(SerializationInfo info, StreamingContext context)
 		{
 			info.AddValue("ScreenRegion", ScreenRegion);
-			info.AddValue("OutputPluginName", OutputInfo.PluginName);
-			info.AddValue("OutputInfoDictionary", OutputInfo.Serialize());
+			if (OutputInfo != null)
+			{
+				info.AddValue("OutputPluginName", OutputInfo.PluginName);
+				info.AddValue("OutputInfoDictionary", OutputInfo.Serialize());
+			}
 		}
 
 		public override string ToString()

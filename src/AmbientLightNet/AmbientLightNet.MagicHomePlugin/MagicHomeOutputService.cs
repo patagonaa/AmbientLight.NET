@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Drawing;
 using System.Linq;
 using AmbiLightNet.PluginBase;
 using MagicHomeController;
@@ -8,6 +9,7 @@ namespace AmbientLightNet.MagicHomePlugin
 	public class MagicHomeOutputService : OutputService<MagicHomeLedOutput>
 	{
 		private Device _device;
+		private Color _lastColor;
 
 		public override void Initialize(MagicHomeLedOutput outputType)
 		{
@@ -17,12 +19,15 @@ namespace AmbientLightNet.MagicHomePlugin
 
 			_device = new Device(foundDevice.IpAddress, outputType.DeviceType);
 			_device.TurnOn();
-			_device.SetColor(0, 0, 0);
+			Output(Color.Black);
 		}
 
-		public override void Output(double r, double g, double b)
+		public override void Output(Color color)
 		{
-			_device.SetColor((byte) (r*255), (byte) (g*255), (byte) (b*255));
+			if(color == _lastColor)
+				return;
+			_device.SetColor(color);
+			_lastColor = color;
 		}
 
 		public override void Dispose()

@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using AmbientLightNet.Infrastructure;
 using AmbiLightNet.PluginBase;
 using Newtonsoft.Json;
@@ -22,13 +21,17 @@ namespace AmbientLightNet.Service
 				return;
 			}
 
-			var config = JsonConvert.DeserializeObject<AmbiLightConfig>(File.ReadAllText(args[0], Encoding.UTF8));
+			IScreenCaptureService screenCaptureService = new GdiScreenCaptureService();
+			//IColorAveragingService colorAveragingService = new GdiDownScalingAveraging(10, 10, InterpolationMode.NearestNeighbor);
+			IColorAveragingService colorAveragingService = new GdiFastPixelAveraging(50, 50);
+
+			AmbiLightConfig config = ReadConfig(args[0]);
+			
+			screenCaptureService.ClearBitmapCache();
 
 			List<IOutputPlugin> plugins = OutputPlugins.GetAvailablePlugins();
 
-			IScreenCaptureService screenCaptureService = new GdiScreenCaptureService();
-
-			List<ScreenRegion> regions = config.RegionsToOutput.Select(x => x.ScreenRegion).ToList();
+			IList<ScreenRegion> regions = config.RegionsToOutput.Select(x => x.ScreenRegion).ToList();
 
 			List<OutputService> outputServices = config.RegionsToOutput
 				.Select(x =>
@@ -40,7 +43,7 @@ namespace AmbientLightNet.Service
 				})
 				.ToList();
 
-			const int fps = 20;
+			const int fps = 30;
 			const int millis = 1000/fps;
 
 			while (true)
@@ -49,39 +52,34 @@ namespace AmbientLightNet.Service
 
 				DateTime startDt = DateTime.UtcNow;
 
-				IList<Bitmap> bitmaps = screenCaptureService.CaptureScreenRegions(regions);
+				IList<Bitmap> bitmaps = screenCaptureService.CaptureScreenRegions(regions, true);
 
 				for (var i = 0; i < regions.Count; i++)
 				{
 					OutputService outputService = outputServices[i];
 					Bitmap bitmap = bitmaps[i];
 
-					using (var tmpBitmap = new Bitmap(1, 1))
-					{
-						using (Graphics tmpGraphics = Graphics.FromImage(tmpBitmap))
-						{
-							tmpGraphics.DrawImage(bitmap, new Rectangle(Point.Empty, new Size(1, 1)), 0, 0, bitmap.Width, bitmap.Height, GraphicsUnit.Pixel);
-						}
-						Color color = tmpBitmap.GetPixel(0, 0);
-						outputService.Output(color.R/255d, color.G/255d, color.B/255d);
-					}
-				}
+					Color averageColor = colorAveragingService.GetAverageColor(bitmap);
 
-				foreach (Bitmap bitmap in bitmaps)
-				{
-					bitmap.Dispose();
+					outputService.Output(averageColor);
 				}
 
 				DateTime endDt = DateTime.UtcNow;
 
-				TimeSpan timeSpan = (endDt - startDt);
-				if ((int) timeSpan.TotalMilliseconds >= millis)
+				var timeSpan = (int) (endDt - startDt).TotalMilliseconds;
+				if (timeSpan >= millis)
 				{
-					Console.WriteLine("Could not keep up! {0}ms too slow", timeSpan.TotalMilliseconds - millis);
+					Console.WriteLine("Could not keep up! {0}ms too slow", timeSpan - millis);
 					continue;
 				}
-				Thread.Sleep(millis - (int)timeSpan.TotalMilliseconds);
+				Thread.Sleep(millis - timeSpan);
 			}
+		}
+
+		private static AmbiLightConfig ReadConfig(string fileName)
+		{
+			var config = JsonConvert.DeserializeObject<AmbiLightConfig>(File.ReadAllText(fileName, Encoding.UTF8));
+			return config;
 		}
 	}
 }
