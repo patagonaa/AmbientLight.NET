@@ -49,6 +49,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AmbiLightService.cs" />
     <Compile Include="GdiDownScalingAveraging.cs" />
     <Compile Include="GdiFastPixelAveraging.cs" />
     <Compile Include="IColorAveragingService.cs" />
