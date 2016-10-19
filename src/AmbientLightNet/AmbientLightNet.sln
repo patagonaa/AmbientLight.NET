@@ -13,6 +13,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.MagicHomePl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbiLightNet.PluginBase", "AmbiLightNet.PluginBase\AmbiLightNet.PluginBase.csproj", "{CD11574C-65F7-439A-860C-7C5A37B8D9E1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.DebugOutputPlugin", "AmbientLightNet.DebugOutputPlugin\AmbientLightNet.DebugOutputPlugin.csproj", "{DBEDEDB2-3DEC-493F-AF6F-9A0E50576011}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,6 +41,10 @@ Global
 		{CD11574C-65F7-439A-860C-7C5A37B8D9E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CD11574C-65F7-439A-860C-7C5A37B8D9E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CD11574C-65F7-439A-860C-7C5A37B8D9E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DBEDEDB2-3DEC-493F-AF6F-9A0E50576011}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DBEDEDB2-3DEC-493F-AF6F-9A0E50576011}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DBEDEDB2-3DEC-493F-AF6F-9A0E50576011}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DBEDEDB2-3DEC-493F-AF6F-9A0E50576011}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

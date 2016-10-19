@@ -62,7 +62,7 @@ namespace AmbientLightNet.Service
 		{
 			_running = true;
 
-			const int fps = 60;
+			const int fps = 30;
 			const int millis = 1000 / fps;
 
 			while (_running)
