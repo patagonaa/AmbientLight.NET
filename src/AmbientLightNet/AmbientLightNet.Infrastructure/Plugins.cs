@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -12,15 +11,7 @@ namespace AmbientLightNet.Infrastructure
 	{
 		static OutputPlugins()
 		{
-			try
-			{
-				AvailablePlugins = GetAllPlugins();
-			}
-			catch (Exception ex)
-			{
-				
-				throw;
-			}
+			AvailablePlugins = GetAllPlugins();
 		}
 
 		private static List<IOutputPlugin> AvailablePlugins { get; set; }

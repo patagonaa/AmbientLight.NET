@@ -62,8 +62,10 @@ namespace AmbientLightNet.Service
 		{
 			_running = true;
 
-			const int fps = 30;
-			const int millis = 1000 / fps;
+
+			const int numSamples = 10;
+			var timeSamples = new Queue<int>(numSamples);
+			
 
 			while (_running)
 			{
@@ -79,19 +81,20 @@ namespace AmbientLightNet.Service
 						Bitmap bitmap = bitmaps[i];
 
 						Color averageColor = _colorAveragingService.GetAverageColor(bitmap);
-
 						outputService.Output(averageColor);
 					}
 
 					DateTime endDt = DateTime.UtcNow;
 
 					var timeSpan = (int)(endDt - startDt).TotalMilliseconds;
-					if (timeSpan >= millis)
+					
+					if (timeSamples.Count == numSamples)
 					{
-						Console.WriteLine("Could not keep up! {0}ms too slow", timeSpan - millis);
-						continue;
+						Console.WriteLine("{0:N0} fps", 1000 / timeSamples.Average());
+						timeSamples.Dequeue();
 					}
-					Thread.Sleep(millis - timeSpan);
+
+					timeSamples.Enqueue(timeSpan);
 				}
 			}
 		}

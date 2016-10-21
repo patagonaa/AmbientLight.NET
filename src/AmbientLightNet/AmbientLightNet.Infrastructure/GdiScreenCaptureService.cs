@@ -1,18 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 
 namespace AmbientLightNet.Infrastructure
 {
 	public class GdiScreenCaptureService : IScreenCaptureService
 	{
-		private readonly Dictionary<IList<ScreenRegion>, IList<KeyValuePair<Bitmap, Graphics>>> _bitmapCache;
+		private readonly Dictionary<IList<ScreenRegion>, IList<Bitmap>> _bitmapCache;
 
 		public GdiScreenCaptureService()
 		{
-			_bitmapCache = new Dictionary<IList<ScreenRegion>, IList<KeyValuePair<Bitmap, Graphics>>>(new ReferenceComparer<IList<ScreenRegion>>());
+			_bitmapCache = new Dictionary<IList<ScreenRegion>, IList<Bitmap>>(new ReferenceComparer<IList<ScreenRegion>>());
 		}
 		
 		public IList<Bitmap> CaptureScreenRegions(IList<ScreenRegion> regions, bool useCache = false)
@@ -20,17 +22,13 @@ namespace AmbientLightNet.Infrastructure
 			Screen[] allScreens = Screen.AllScreens;
 
 			IList<Bitmap> bitmaps = new List<Bitmap>();
-			IList<Graphics> graphicses = new List<Graphics>();
 
-			IList<KeyValuePair<Bitmap, Graphics>> cachedCollection;
+			IList<Bitmap> cachedCollection;
 			bool cacheEntryExists = _bitmapCache.TryGetValue(regions, out cachedCollection);
 
 			if (useCache && cacheEntryExists)
 			{
-				bitmaps = cachedCollection.Select(x => x.Key).ToList();
-				if(bitmaps.Any(BitmapIsDisposed))
-					throw new InvalidOperationException("Do not dispose cached Bitmaps!");
-				graphicses = cachedCollection.Select(x => x.Value).ToList();
+				bitmaps = cachedCollection;
 			}
 			else
 			{
@@ -43,21 +41,35 @@ namespace AmbientLightNet.Infrastructure
 					var width = (int)(screen.Bounds.Width * region.Rectangle.Width);
 					var height = (int)(screen.Bounds.Height * region.Rectangle.Height);
 
-					var bitmap = new Bitmap(width, height);
+					var bitmap = new Bitmap(width, height, PixelFormat.Format24bppRgb);
 					bitmaps.Add(bitmap);
-					graphicses.Add(Graphics.FromImage(bitmap));
 				}
 
 				if (useCache)
 				{
-					cachedCollection = new List<KeyValuePair<Bitmap, Graphics>>();
+					cachedCollection = new List<Bitmap>();
 					
 					for (var i = 0; i < regions.Count; i++)
 					{
-						cachedCollection.Add(new KeyValuePair<Bitmap, Graphics>(bitmaps[i], graphicses[i]));
+						cachedCollection.Add(bitmaps[i]);
 					}
 
 					_bitmapCache[regions] = cachedCollection;
+				}
+			}
+
+			var screenBitmaps = new Dictionary<Screen, Bitmap>();
+
+			foreach (Screen screen in allScreens)
+			{
+				if(regions.All(x => x.ScreenName != screen.DeviceName))
+					continue;
+
+				Rectangle screenBounds = screen.Bounds;
+				screenBitmaps[screen] = new Bitmap(screenBounds.Width, screenBounds.Height, PixelFormat.Format24bppRgb);
+				using (Graphics g = Graphics.FromImage(screenBitmaps[screen]))
+				{
+					g.CopyFromScreen(screenBounds.Location, Point.Empty, screenBounds.Size, CopyPixelOperation.SourceCopy);
 				}
 			}
 			
@@ -65,49 +77,55 @@ namespace AmbientLightNet.Infrastructure
 			{
 				ScreenRegion region = regions[i];
 				Bitmap bitmap = bitmaps[i];
-				Graphics graphics = graphicses[i];
 
 				Screen screen = allScreens.Single(x => x.DeviceName == region.ScreenName);
 
-				var positionX = (int)(screen.Bounds.X + (screen.Bounds.Width * region.Rectangle.X));
-				var positionY = (int)(screen.Bounds.Y + (screen.Bounds.Height * region.Rectangle.Y));
+				Rectangle screenBounds = screen.Bounds;
+				RectangleF regionRect = region.Rectangle;
 
-				var width = (int)(screen.Bounds.Width * region.Rectangle.Width);
-				var height = (int)(screen.Bounds.Height * region.Rectangle.Height);
+				var positionX = (int)(screenBounds.X + (screenBounds.Width * regionRect.X));
+				var positionY = (int)(screenBounds.Y + (screenBounds.Height * regionRect.Y));
 
-				graphics.CopyFromScreen(positionX, positionY, 0, 0, new Size(width, height), CopyPixelOperation.SourceCopy);
-
-				if (!useCache)
-				{
-					graphics.Dispose();
-				}
+				ClipPart(bitmap, screenBitmaps[screen], positionX, positionY);
 
 				bitmaps.Add(bitmap);
+			}
+
+			foreach (KeyValuePair<Screen, Bitmap> screenBitmap in screenBitmaps)
+			{
+				screenBitmap.Value.Dispose();
 			}
 
 			return bitmaps;
 		}
 
+		[DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
+		private static extern IntPtr memcpy(IntPtr dest, IntPtr src, uint count);
+
+		private void ClipPart(Bitmap dest, Bitmap src, int positionX, int positionY)
+		{
+			BitmapData destData = dest.LockBits(new Rectangle(0, 0, dest.Width, dest.Height), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+			BitmapData srcData = src.LockBits(new Rectangle(0, 0, src.Width, src.Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+
+			const uint bytesPerPixel = 3;
+			var rowBytes = (uint) (destData.Width * bytesPerPixel);
+			int destHeight = dest.Height;
+			for (var y = 0; y < destHeight; y++)
+			{
+				memcpy(destData.Scan0 + (destData.Stride * y), srcData.Scan0 + (srcData.Stride * (y + positionY) + positionX), rowBytes);
+			}
+
+			src.UnlockBits(srcData);
+			dest.UnlockBits(destData);
+		}
+
 		public void ClearBitmapCache()
 		{
-			foreach (KeyValuePair<IList<ScreenRegion>, IList<KeyValuePair<Bitmap, Graphics>>> keyValuePair in _bitmapCache)
+			foreach (KeyValuePair<IList<ScreenRegion>, IList<Bitmap>> keyValuePair in _bitmapCache)
 			{
 				DisposeCacheEntry(keyValuePair.Value);
 			}
 			_bitmapCache.Clear();
-		}
-
-		private static bool BitmapIsDisposed(Bitmap bitmap)
-		{
-			try
-			{
-				bitmap.GetPixel(0, 0);
-				return false;
-			}
-			catch (ArgumentException)
-			{
-				return true;
-			}
 		}
 
 		private class ReferenceComparer<T> : IEqualityComparer<T>
@@ -125,19 +143,18 @@ namespace AmbientLightNet.Infrastructure
 
 		public void Dispose()
 		{
-			foreach (KeyValuePair<IList<ScreenRegion>, IList<KeyValuePair<Bitmap, Graphics>>> keyValuePair in _bitmapCache)
+			foreach (KeyValuePair<IList<ScreenRegion>, IList<Bitmap>> keyValuePair in _bitmapCache)
 			{
 				DisposeCacheEntry(keyValuePair.Value);
 			}
 			_bitmapCache.Clear();
 		}
 
-		private void DisposeCacheEntry(IEnumerable<KeyValuePair<Bitmap, Graphics>> entry)
+		private void DisposeCacheEntry(IEnumerable<Bitmap> entry)
 		{
-			foreach (KeyValuePair<Bitmap, Graphics> keyValuePair in entry)
+			foreach (Bitmap bitmap in entry)
 			{
-				keyValuePair.Key.Dispose();
-				keyValuePair.Value.Dispose();
+				bitmap.Dispose();
 			}
 		}
 	}
