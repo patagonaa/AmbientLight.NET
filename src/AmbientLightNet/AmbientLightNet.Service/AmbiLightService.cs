@@ -62,11 +62,12 @@ namespace AmbientLightNet.Service
 		{
 			_running = true;
 
-
 			const int numSamples = 10;
+			const int maxFps = 60;
+
+			const int minMillis = 1000/maxFps;
 			var timeSamples = new Queue<int>(numSamples);
 			
-
 			while (_running)
 			{
 				lock (_configLock)
@@ -87,6 +88,13 @@ namespace AmbientLightNet.Service
 					DateTime endDt = DateTime.UtcNow;
 
 					var timeSpan = (int)(endDt - startDt).TotalMilliseconds;
+
+					if (timeSpan < minMillis)
+					{
+						int waitTime = minMillis - timeSpan;
+						Thread.Sleep(waitTime);
+						timeSpan += waitTime;
+					}
 					
 					if (timeSamples.Count == numSamples)
 					{

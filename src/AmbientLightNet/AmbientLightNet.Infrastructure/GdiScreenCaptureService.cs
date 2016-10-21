@@ -78,15 +78,25 @@ namespace AmbientLightNet.Infrastructure
 				ScreenRegion region = regions[i];
 				Bitmap bitmap = bitmaps[i];
 
-				Screen screen = allScreens.Single(x => x.DeviceName == region.ScreenName);
+				Screen screen = allScreens.SingleOrDefault(x => x.DeviceName == region.ScreenName);
 
-				Rectangle screenBounds = screen.Bounds;
-				RectangleF regionRect = region.Rectangle;
+				if (screen == null)
+				{
+					using (Graphics g = Graphics.FromImage(bitmap))
+					{
+						g.FillRectangle(Brushes.Black, 0, 0, bitmap.Width, bitmap.Height);
+					}
+				}
+				else
+				{
+					Rectangle screenBounds = screen.Bounds;
+					RectangleF regionRect = region.Rectangle;
 
-				var positionX = (int)(screenBounds.X + (screenBounds.Width * regionRect.X));
-				var positionY = (int)(screenBounds.Y + (screenBounds.Height * regionRect.Y));
+					var positionX = (int)(screenBounds.X + (screenBounds.Width * regionRect.X));
+					var positionY = (int)(screenBounds.Y + (screenBounds.Height * regionRect.Y));
 
-				ClipPart(bitmap, screenBitmaps[screen], positionX, positionY);
+					ClipPart(bitmap, screenBitmaps[screen], positionX, positionY);
+				}
 
 				bitmaps.Add(bitmap);
 			}
