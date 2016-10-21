@@ -67,16 +67,23 @@ namespace AmbientLightNet.Infrastructure
 				Bitmap bitmap = bitmaps[i];
 				Graphics graphics = graphicses[i];
 
-				Screen screen = allScreens.Single(x => x.DeviceName == region.ScreenName);
+				Screen screen = allScreens.SingleOrDefault(x => x.DeviceName == region.ScreenName);
 
-				var positionX = (int)(screen.Bounds.X + (screen.Bounds.Width * region.Rectangle.X));
-				var positionY = (int)(screen.Bounds.Y + (screen.Bounds.Height * region.Rectangle.Y));
+				int width = bitmap.Width;
+				int height = bitmap.Height;
 
-				var width = (int)(screen.Bounds.Width * region.Rectangle.Width);
-				var height = (int)(screen.Bounds.Height * region.Rectangle.Height);
-
-				graphics.CopyFromScreen(positionX, positionY, 0, 0, new Size(width, height), CopyPixelOperation.SourceCopy);
-
+				if (screen == null)
+				{
+					graphics.FillRectangle(Brushes.Black, 0, 0, width, height);
+				}
+				else
+				{
+					var positionX = (int)(screen.Bounds.X + (screen.Bounds.Width * region.Rectangle.X));
+					var positionY = (int)(screen.Bounds.Y + (screen.Bounds.Height * region.Rectangle.Y));
+					
+					graphics.CopyFromScreen(positionX, positionY, 0, 0, new Size(width, height), CopyPixelOperation.SourceCopy);
+				}
+				
 				if (!useCache)
 				{
 					graphics.Dispose();
