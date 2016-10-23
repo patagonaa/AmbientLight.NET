@@ -38,7 +38,10 @@ namespace AmbientLightNet.Infrastructure
 				{
 					ScreenRegion region = regions[i];
 
-					Screen screen = allScreens.Single(x => x.DeviceName == region.ScreenName);
+					Screen screen = allScreens.SingleOrDefault(x => x.DeviceName == region.ScreenName);
+
+					if (screen == null)
+						throw new InvalidOperationException(string.Format("screen {0} not found", region.ScreenName));
 
 					var width = (int)(screen.Bounds.Width * region.Rectangle.Width);
 					var height = (int)(screen.Bounds.Height * region.Rectangle.Height);

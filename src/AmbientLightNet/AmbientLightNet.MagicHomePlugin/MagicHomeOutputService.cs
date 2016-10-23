@@ -9,7 +9,6 @@ namespace AmbientLightNet.MagicHomePlugin
 	public class MagicHomeOutputService : OutputService<MagicHomeLedOutput>
 	{
 		private Device _device;
-		private Color _lastColor;
 
 		public override void Initialize(MagicHomeLedOutput outputType)
 		{
@@ -24,10 +23,7 @@ namespace AmbientLightNet.MagicHomePlugin
 
 		public override void Output(Color color)
 		{
-			if(color == _lastColor)
-				return;
 			_device.SetColor(color);
-			_lastColor = color;
 		}
 
 		public override void Dispose()

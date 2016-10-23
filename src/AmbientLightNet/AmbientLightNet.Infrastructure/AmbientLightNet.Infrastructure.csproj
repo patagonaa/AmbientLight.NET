@@ -46,6 +46,9 @@
   <ItemGroup>
     <Compile Include="AmbiLightConfig.cs" />
     <Compile Include="AppConfiguration.cs" />
+    <Compile Include="ColorTransformer\BrightnessColorTransformer.cs" />
+    <Compile Include="ColorTransformer\GammaColorTransformer.cs" />
+    <Compile Include="ColorTransformer\IColorTransformer.cs" />
     <Compile Include="GdiScreenCaptureService.cs" />
     <Compile Include="IScreenCaptureService.cs" />
     <Compile Include="Plugins.cs" />

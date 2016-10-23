@@ -5,7 +5,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using AmbientLightNet.Infrastructure;
+using AmbientLightNet.Infrastructure.ColorTransformer;
 using AmbiLightNet.PluginBase;
 using Newtonsoft.Json;
 
@@ -20,6 +22,7 @@ namespace AmbientLightNet.Service
 		private readonly object _configLock = new object();
 		private IList<ScreenRegion> _regions;
 		private List<OutputService> _outputServices;
+		private IList<IColorTransformer> _colorTransformers;
 
 		public AmbiLightService(string configPath)
 		{
@@ -28,6 +31,12 @@ namespace AmbientLightNet.Service
 
 			//_colorAveragingService = new GdiDownScalingAveraging(10, 10, InterpolationMode.NearestNeighbor);
 			_colorAveragingService = new GdiFastPixelAveraging(10, 10);
+
+			_colorTransformers = new List<IColorTransformer>
+			{
+				new BrightnessColorTransformer(1, 0.9, 0.4),
+				new GammaColorTransformer(1, 1.2, 1.2)
+			};
 
 			AmbiLightConfig config = ReadConfig(_configPath);
 
@@ -68,6 +77,8 @@ namespace AmbientLightNet.Service
 
 			const int minMillis = 1000/maxFps;
 			var timeSamples = new Queue<int>(numSamples);
+
+			Task outputTask = null;
 			
 			while (_running)
 			{
@@ -83,7 +94,13 @@ namespace AmbientLightNet.Service
 						Bitmap bitmap = bitmaps[i];
 
 						Color averageColor = _colorAveragingService.GetAverageColor(bitmap);
-						outputService.Output(averageColor);
+
+						Color outputColor = _colorTransformers.Aggregate(averageColor, (color, transformer) => transformer.Transform(color));
+
+						if (outputTask != null && !outputTask.IsCompleted)
+							outputTask.Wait();
+
+						outputTask = Task.Run(() => outputService.Output(outputColor));
 					}
 
 					DateTime endDt = DateTime.UtcNow;
