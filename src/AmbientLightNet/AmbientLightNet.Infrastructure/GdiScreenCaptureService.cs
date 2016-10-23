@@ -58,19 +58,13 @@ namespace AmbientLightNet.Infrastructure
 				}
 			}
 
-			var screenBitmaps = new Dictionary<Screen, Bitmap>();
+			Rectangle screensRect = allScreens.Select(x => x.Bounds).Aggregate(Rectangle.Union);
 
-			foreach (Screen screen in allScreens)
+			var screensBitmap = new Bitmap(screensRect.Width, screensRect.Height, PixelFormat.Format24bppRgb);
+
+			using (Graphics g = Graphics.FromImage(screensBitmap))
 			{
-				if(regions.All(x => x.ScreenName != screen.DeviceName))
-					continue;
-
-				Rectangle screenBounds = screen.Bounds;
-				screenBitmaps[screen] = new Bitmap(screenBounds.Width, screenBounds.Height, PixelFormat.Format24bppRgb);
-				using (Graphics g = Graphics.FromImage(screenBitmaps[screen]))
-				{
-					g.CopyFromScreen(screenBounds.Location, Point.Empty, screenBounds.Size, CopyPixelOperation.SourceCopy);
-				}
+				g.CopyFromScreen(screensRect.Location, Point.Empty, screensRect.Size, CopyPixelOperation.SourceCopy);
 			}
 			
 			for (var i = 0; i < regions.Count; i++)
@@ -95,16 +89,13 @@ namespace AmbientLightNet.Infrastructure
 					var positionX = (int)(screenBounds.X + (screenBounds.Width * regionRect.X));
 					var positionY = (int)(screenBounds.Y + (screenBounds.Height * regionRect.Y));
 
-					ClipPart(bitmap, screenBitmaps[screen], positionX, positionY);
+					ClipPart(bitmap, screensBitmap, positionX, positionY);
 				}
 
 				bitmaps.Add(bitmap);
 			}
 
-			foreach (KeyValuePair<Screen, Bitmap> screenBitmap in screenBitmaps)
-			{
-				screenBitmap.Value.Dispose();
-			}
+			screensBitmap.Dispose();
 
 			return bitmaps;
 		}
@@ -112,17 +103,17 @@ namespace AmbientLightNet.Infrastructure
 		[DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
 		private static extern IntPtr memcpy(IntPtr dest, IntPtr src, uint count);
 
-		private void ClipPart(Bitmap dest, Bitmap src, int positionX, int positionY)
+		private static void ClipPart(Bitmap dest, Bitmap src, int positionX, int positionY)
 		{
 			BitmapData destData = dest.LockBits(new Rectangle(0, 0, dest.Width, dest.Height), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
 			BitmapData srcData = src.LockBits(new Rectangle(0, 0, src.Width, src.Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
 
-			const uint bytesPerPixel = 3;
+			const int bytesPerPixel = 3;
 			var rowBytes = (uint) (destData.Width * bytesPerPixel);
 			int destHeight = dest.Height;
 			for (var y = 0; y < destHeight; y++)
 			{
-				memcpy(destData.Scan0 + (destData.Stride * y), srcData.Scan0 + (srcData.Stride * (y + positionY) + positionX), rowBytes);
+				memcpy(destData.Scan0 + (destData.Stride * y), srcData.Scan0 + (srcData.Stride * (y + positionY) + (positionX * bytesPerPixel)), rowBytes);
 			}
 
 			src.UnlockBits(srcData);
