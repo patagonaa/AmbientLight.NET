@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio 14
+VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.Configurator", "AmbientLightNet.Configurator\AmbientLightNet.Configurator.csproj", "{E65195F7-1173-4B13-A171-D94076CFD3C6}"
 EndProject
@@ -14,6 +14,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbiLightNet.PluginBase", "AmbiLightNet.PluginBase\AmbiLightNet.PluginBase.csproj", "{CD11574C-65F7-439A-860C-7C5A37B8D9E1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.DebugOutputPlugin", "AmbientLightNet.DebugOutputPlugin\AmbientLightNet.DebugOutputPlugin.csproj", "{DBEDEDB2-3DEC-493F-AF6F-9A0E50576011}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.UnitTests", "AmbientLightNet.UnitTests\AmbientLightNet.UnitTests.csproj", "{10488A72-5F9C-4F08-A1E8-EB0FC9A442E4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -45,6 +47,10 @@ Global
 		{DBEDEDB2-3DEC-493F-AF6F-9A0E50576011}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DBEDEDB2-3DEC-493F-AF6F-9A0E50576011}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DBEDEDB2-3DEC-493F-AF6F-9A0E50576011}.Release|Any CPU.Build.0 = Release|Any CPU
+		{10488A72-5F9C-4F08-A1E8-EB0FC9A442E4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{10488A72-5F9C-4F08-A1E8-EB0FC9A442E4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{10488A72-5F9C-4F08-A1E8-EB0FC9A442E4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{10488A72-5F9C-4F08-A1E8-EB0FC9A442E4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

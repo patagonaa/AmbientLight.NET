@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 
 namespace AmbientLightNet.Infrastructure.ColorTransformer
@@ -8,6 +9,14 @@ namespace AmbientLightNet.Infrastructure.ColorTransformer
 		private readonly double _gammaR;
 		private readonly double _gammaG;
 		private readonly double _gammaB;
+
+		public GammaColorTransformer(IDictionary<string, object> config)
+			: this(
+				(double) config["gammaR"],
+				(double) config["gammaG"],
+				(double) config["gammaB"])
+		{
+		}
 
 		public GammaColorTransformer(double gammaR, double gammaG, double gammaB)
 		{

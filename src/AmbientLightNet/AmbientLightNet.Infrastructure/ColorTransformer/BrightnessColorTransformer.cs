@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 
 namespace AmbientLightNet.Infrastructure.ColorTransformer
@@ -8,6 +9,14 @@ namespace AmbientLightNet.Infrastructure.ColorTransformer
 		private readonly double _factorR;
 		private readonly double _factorG;
 		private readonly double _factorB;
+
+		public BrightnessColorTransformer(IDictionary<string, object> config)
+			: this(
+				(double) config["factorR"],
+				(double) config["factorG"],
+				(double) config["factorB"])
+		{
+		}
 
 		public BrightnessColorTransformer(double factorR, double factorG, double factorB)
 		{

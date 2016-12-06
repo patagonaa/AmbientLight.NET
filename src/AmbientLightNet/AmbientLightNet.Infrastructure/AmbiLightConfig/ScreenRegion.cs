@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 
-namespace AmbientLightNet.Infrastructure
+namespace AmbientLightNet.Infrastructure.AmbiLightConfig
 {
 	public class ScreenRegion
 	{

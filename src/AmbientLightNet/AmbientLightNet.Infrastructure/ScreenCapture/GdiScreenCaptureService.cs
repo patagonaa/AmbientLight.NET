@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using AmbientLightNet.Infrastructure.AmbiLightConfig;
 
-namespace AmbientLightNet.Infrastructure
+namespace AmbientLightNet.Infrastructure.ScreenCapture
 {
 	public class GdiScreenCaptureService : IScreenCaptureService
 	{

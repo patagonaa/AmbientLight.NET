@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using System.Runtime.Serialization;
 using AmbiLightNet.PluginBase;
 
-namespace AmbientLightNet.Infrastructure
+namespace AmbientLightNet.Infrastructure.AmbiLightConfig
 {
 	[Serializable]
 	public class ScreenRegionOutput : ISerializable
 	{
 		public ScreenRegion ScreenRegion { get; set; }
 		public IOutputInfo OutputInfo { get; set; }
+		public IList<ColorTransformerConfig> ColorTransformerConfigs { get; set; }
+		public ColorAveragingConfig ColorAveragingConfig { get; set; }
 
 		public ScreenRegionOutput()
 		{
@@ -18,6 +20,17 @@ namespace AmbientLightNet.Infrastructure
 		protected ScreenRegionOutput(SerializationInfo info, StreamingContext context)
 		{
 			ScreenRegion = (ScreenRegion)info.GetValue("ScreenRegion", typeof(ScreenRegion));
+
+			try
+			{
+				ColorTransformerConfigs = (IList<ColorTransformerConfig>)info.GetValue("ColorTransformerConfigs", typeof(IList<ColorTransformerConfig>));
+				ColorAveragingConfig = (ColorAveragingConfig)info.GetValue("ColorAveragingConfig", typeof(ColorAveragingConfig));
+			}
+			catch (SerializationException)
+			{
+				
+			}
+
 
 			string pluginName = info.GetString("OutputPluginName");
 
@@ -42,6 +55,9 @@ namespace AmbientLightNet.Infrastructure
 				info.AddValue("OutputPluginName", OutputInfo.PluginName);
 				info.AddValue("OutputInfoDictionary", OutputInfo.Serialize());
 			}
+
+			info.AddValue("ColorTransformerConfigs", ColorTransformerConfigs, typeof(IList<ColorTransformerConfig>));
+			info.AddValue("ColorAveragingConfig", ColorAveragingConfig);
 		}
 
 		public override string ToString()

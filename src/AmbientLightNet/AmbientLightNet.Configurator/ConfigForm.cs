@@ -5,8 +5,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
-using AmbientLightNet.Infrastructure;
-using AmbiLightNet.PluginBase;
+using AmbientLightNet.Infrastructure.AmbiLightConfig;
+using AmbientLightNet.Infrastructure.ScreenCapture;
 using Newtonsoft.Json;
 
 namespace AmbientLightNet.Configurator

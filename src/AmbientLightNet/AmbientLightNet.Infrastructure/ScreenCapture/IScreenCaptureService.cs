@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
+using AmbientLightNet.Infrastructure.AmbiLightConfig;
 
-namespace AmbientLightNet.Infrastructure
+namespace AmbientLightNet.Infrastructure.ScreenCapture
 {
 	public interface IScreenCaptureService : IDisposable
 	{

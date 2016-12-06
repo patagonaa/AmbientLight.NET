@@ -7,7 +7,10 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using AmbientLightNet.Infrastructure;
+using AmbientLightNet.Infrastructure.AmbiLightConfig;
+using AmbientLightNet.Infrastructure.ColorAveraging;
 using AmbientLightNet.Infrastructure.ColorTransformer;
+using AmbientLightNet.Infrastructure.ScreenCapture;
 using AmbiLightNet.PluginBase;
 using Newtonsoft.Json;
 
@@ -18,25 +21,19 @@ namespace AmbientLightNet.Service
 		private readonly string _configPath;
 		private bool _running;
 		private readonly IScreenCaptureService _screenCaptureService;
-		private readonly IColorAveragingService _colorAveragingService;
 		private readonly object _configLock = new object();
-		private IList<ScreenRegion> _regions;
-		private List<OutputService> _outputServices;
-		private IList<IColorTransformer> _colorTransformers;
+		private IList<RegionConfiguration> _regionConfigurations;
+		private readonly ColorAveragingServiceProvider _colorAveragingServiceProvider;
+		private readonly ColorTransformerProvider _colorTransformerProvider;
+		private IList<ScreenRegion> _screenRegions; //needed as reference for caching
 
 		public AmbiLightService(string configPath)
 		{
 			_configPath = configPath;
 			_screenCaptureService = new GdiScreenCaptureService();
 
-			//_colorAveragingService = new GdiDownScalingAveraging(10, 10, InterpolationMode.NearestNeighbor);
-			_colorAveragingService = new GdiFastPixelAveraging(10, 10);
-
-			_colorTransformers = new List<IColorTransformer>
-			{
-				new BrightnessColorTransformer(1, 0.9, 0.4),
-				new GammaColorTransformer(1, 1.2, 1.2)
-			};
+			_colorAveragingServiceProvider = new ColorAveragingServiceProvider();
+			_colorTransformerProvider = new ColorTransformerProvider();
 
 			AmbiLightConfig config = ReadConfig(_configPath);
 
@@ -47,33 +44,48 @@ namespace AmbientLightNet.Service
 		{
 			List<IOutputPlugin> plugins = OutputPlugins.GetAvailablePlugins();
 
-			_regions = config.RegionsToOutput.Select(x => x.ScreenRegion).ToList();
+			List<ScreenRegionOutput> regions = config.RegionsToOutput;
 
-			if (_outputServices != null)
+			if (_regionConfigurations != null)
 			{
-				foreach (OutputService outputService in _outputServices)
+				foreach (RegionConfiguration regionConfiguration in _regionConfigurations)
 				{
-					outputService.Dispose();
+					regionConfiguration.Dispose();
 				}
 			}
-			_outputServices = config.RegionsToOutput
-				.Select(x =>
+			
+			_regionConfigurations = new List<RegionConfiguration>();
+
+			foreach (ScreenRegionOutput region in regions)
+			{
+				IOutputInfo outputInfo = region.OutputInfo;
+				IOutputPlugin plugin = plugins.FirstOrDefault(y => y.Name == outputInfo.PluginName);
+				if (plugin == null)
+					throw new InvalidOperationException(string.Format("Missing OutputPlugin {0}", outputInfo.PluginName));
+
+				OutputService outputService = plugin.GetNewOutputService();
+				outputService.Initialize(outputInfo);
+
+				var regionConfig = new RegionConfiguration
 				{
-					IOutputPlugin plugin = plugins.First(y => y.Name == x.OutputInfo.PluginName);
-					OutputService outputService = plugin.GetNewOutputService();
-					outputService.Initialize(x.OutputInfo);
-					return outputService;
-				})
-				.ToList();
+					ScreenRegion = region.ScreenRegion,
+					ColorAveragingService = _colorAveragingServiceProvider.Provide(region.ColorAveragingConfig),
+					ColorTransformers = _colorTransformerProvider.Provide(region.ColorTransformerConfigs),
+					OutputService = outputService
+				};
+
+				_regionConfigurations.Add(regionConfig);
+			}
+
+			_screenRegions = _regionConfigurations.Select(x => x.ScreenRegion).ToList();
 		}
 
 		public void Start()
 		{
 			_running = true;
 
-
 			const int numSamples = 10;
-			const int maxFps = 60;
+			const int maxFps = 30;
 
 			const int minMillis = 1000/maxFps;
 			var timeSamples = new Queue<int>(numSamples);
@@ -85,22 +97,23 @@ namespace AmbientLightNet.Service
 				lock (_configLock)
 				{
 					DateTime startDt = DateTime.UtcNow;
+					
+					IList<Bitmap> bitmaps = _screenCaptureService.CaptureScreenRegions(_screenRegions, true);
 
-					IList<Bitmap> bitmaps = _screenCaptureService.CaptureScreenRegions(_regions, true);
-
-					for (var i = 0; i < _regions.Count; i++)
+					for (var i = 0; i < _regionConfigurations.Count; i++)
 					{
-						OutputService outputService = _outputServices[i];
+						var regionConfiguration = _regionConfigurations[i];
+						
 						Bitmap bitmap = bitmaps[i];
 
-						Color averageColor = _colorAveragingService.GetAverageColor(bitmap);
+						Color averageColor = regionConfiguration.ColorAveragingService.GetAverageColor(bitmap);
 
-						Color outputColor = _colorTransformers.Aggregate(averageColor, (color, transformer) => transformer.Transform(color));
+						Color outputColor = regionConfiguration.ColorTransformers.Aggregate(averageColor, (color, transformer) => transformer.Transform(color));
 
 						if (outputTask != null && !outputTask.IsCompleted)
 							outputTask.Wait();
 
-						outputTask = Task.Run(() => outputService.Output(outputColor));
+						outputTask = Task.Run(() => regionConfiguration.OutputService.Output(outputColor));
 					}
 
 					DateTime endDt = DateTime.UtcNow;
@@ -138,7 +151,7 @@ namespace AmbientLightNet.Service
 
 		private static AmbiLightConfig ReadConfig(string fileName)
 		{
-			return JsonConvert.DeserializeObject<AmbiLightConfig>(File.ReadAllText(fileName, Encoding.UTF8));
+			return JsonConvert.DeserializeObject<AmbiLightConfig>(File.ReadAllText(fileName, Encoding.UTF8), new JsonSerializerSettings() {MissingMemberHandling = MissingMemberHandling.Ignore});
 		}
 
 		public void Stop()
@@ -149,7 +162,25 @@ namespace AmbientLightNet.Service
 		public void Dispose()
 		{
 			_screenCaptureService.Dispose();
-			_colorAveragingService.Dispose();
+
+			foreach (var regionConfiguration in _regionConfigurations)
+			{
+				regionConfiguration.Dispose();
+			}
+		}
+
+		private class RegionConfiguration : IDisposable
+		{
+			public ScreenRegion ScreenRegion { get; set; }
+			public IColorAveragingService ColorAveragingService { get; set; }
+			public IList<IColorTransformer> ColorTransformers { get; set; }
+			public OutputService OutputService { get; set; }
+
+			public void Dispose()
+			{
+				ColorAveragingService.Dispose();
+				OutputService.Dispose();
+			}
 		}
 	}
 }

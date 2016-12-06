@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 
 namespace AmbientLightNet.Service
 {
@@ -22,6 +23,7 @@ namespace AmbientLightNet.Service
 				watcher.EnableRaisingEvents = false;
 				while (FileIsLocked(eventArgs.FullPath))
 				{
+					Thread.Sleep(100);
 				}
 				ambiLight.ReloadConfig();
 				watcher.EnableRaisingEvents = true;

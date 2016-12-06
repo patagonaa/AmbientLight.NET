@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace AmbientLightNet.Infrastructure
+namespace AmbientLightNet.Infrastructure.AmbiLightConfig
 {
     public class AmbiLightConfig
     {

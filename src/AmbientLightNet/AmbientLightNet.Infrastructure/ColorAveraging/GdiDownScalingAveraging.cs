@@ -3,14 +3,22 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Linq;
 
-namespace AmbientLightNet.Service
+namespace AmbientLightNet.Infrastructure.ColorAveraging
 {
-	internal class GdiDownScalingAveraging : IColorAveragingService
+	public class GdiDownScalingAveraging : IColorAveragingService
 	{
 		private readonly int _bitmapWidth;
 		private readonly int _bitmapHeight;
 		private readonly Bitmap _bitmap;
 		private readonly Graphics _graphics;
+
+		public GdiDownScalingAveraging(IDictionary<string, object> config)
+			: this(
+				(int) config["width"],
+				(int) config["height"],
+				(InterpolationMode) config["interpolationMode"])
+		{
+		}
 
 		public GdiDownScalingAveraging(int width, int height, InterpolationMode interpolationMode)
 		{

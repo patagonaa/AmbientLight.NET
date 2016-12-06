@@ -1,14 +1,22 @@
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 
-namespace AmbientLightNet.Service
+namespace AmbientLightNet.Infrastructure.ColorAveraging
 {
-	internal class GdiFastPixelAveraging : IColorAveragingService
+	public class GdiFastPixelAveraging : IColorAveragingService
 	{
 		private readonly int _skipColumns;
 		private readonly int _skipRows;
 		private byte[] _data;
+
+		public GdiFastPixelAveraging(IDictionary<string, object> config)
+			: this(
+				(int) config["skipColumns"],
+				(int) config["skipRows"])
+		{
+		}
 
 		public GdiFastPixelAveraging(int skipColumns = 0, int skipRows = 0)
 		{
