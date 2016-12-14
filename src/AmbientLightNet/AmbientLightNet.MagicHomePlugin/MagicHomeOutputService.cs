@@ -3,6 +3,7 @@ using System.Drawing;
 using System.Linq;
 using AmbiLightNet.PluginBase;
 using MagicHomeController;
+using System.Net;
 
 namespace AmbientLightNet.MagicHomePlugin
 {
@@ -12,11 +13,28 @@ namespace AmbientLightNet.MagicHomePlugin
 
 		public override void Initialize(MagicHomeLedOutput outputType)
 		{
-			DeviceFindResult foundDevice = DeviceFinder.FindDevices().FirstOrDefault(x => x.MacAddress.Equals(outputType.MacAddress));
-			if(foundDevice == null)
-				throw new Exception(string.Format("device with mac {0} could not be found", outputType.MacAddress));
+			IPAddress ip;
+			int port = 5577;
 
-			_device = new Device(foundDevice.IpAddress, outputType.DeviceType);
+			switch (outputType.AddressType)
+			{
+				case AddressType.MacAddress:
+					DeviceFindResult foundDevice = DeviceFinder.FindDevices().FirstOrDefault(x => x.MacAddress.Equals(outputType.MacAddress));
+					if (foundDevice == null)
+						throw new Exception(string.Format("device with mac {0} could not be found", outputType.MacAddress));
+					ip = foundDevice.IpAddress;
+					break;
+
+				case AddressType.IpAddress:
+					ip = outputType.IPAddress;
+					if (outputType.Port.HasValue)
+						port = outputType.Port.Value;
+					break;
+				default:
+					throw new IndexOutOfRangeException();
+			}
+
+			_device = new Device(new IPEndPoint(ip, port), outputType.DeviceType);
 			_device.TurnOn();
 			Output(Color.Black);
 		}

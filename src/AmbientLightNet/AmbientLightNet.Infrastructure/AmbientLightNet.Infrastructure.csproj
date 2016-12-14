@@ -45,6 +45,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AmbiLightConfig\AmbiLightConfig.cs" />
+    <Compile Include="AmbiLightConfig\Output.cs" />
     <Compile Include="AppConfiguration.cs" />
     <Compile Include="AmbiLightConfig\ColorAveragingConfig.cs" />
     <Compile Include="ColorAveraging\GdiDownScalingAveraging.cs" />

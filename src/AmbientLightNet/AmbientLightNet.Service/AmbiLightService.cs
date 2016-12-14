@@ -53,26 +53,36 @@ namespace AmbientLightNet.Service
 					regionConfiguration.Dispose();
 				}
 			}
-			
+
 			_regionConfigurations = new List<RegionConfiguration>();
 
 			foreach (ScreenRegionOutput region in regions)
 			{
-				IOutputInfo outputInfo = region.OutputInfo;
-				IOutputPlugin plugin = plugins.FirstOrDefault(y => y.Name == outputInfo.PluginName);
-				if (plugin == null)
-					throw new InvalidOperationException(string.Format("Missing OutputPlugin {0}", outputInfo.PluginName));
-
-				OutputService outputService = plugin.GetNewOutputService();
-				outputService.Initialize(outputInfo);
-
 				var regionConfig = new RegionConfiguration
 				{
 					ScreenRegion = region.ScreenRegion,
 					ColorAveragingService = _colorAveragingServiceProvider.Provide(region.ColorAveragingConfig),
-					ColorTransformers = _colorTransformerProvider.Provide(region.ColorTransformerConfigs),
-					OutputService = outputService
+					OutputConfigs = new List<OutputConfiguration>()
 				};
+
+				foreach (var output in region.Outputs)
+				{
+					IOutputInfo outputInfo = output.OutputInfo;
+					IOutputPlugin plugin = plugins.FirstOrDefault(y => y.Name == outputInfo.PluginName);
+					if (plugin == null)
+						throw new InvalidOperationException(string.Format("Missing OutputPlugin {0}", outputInfo.PluginName));
+
+					OutputService outputService = plugin.GetNewOutputService();
+					outputService.Initialize(outputInfo);
+
+					var outputConfig = new OutputConfiguration
+					{
+						ColorTransformers = _colorTransformerProvider.Provide(output.ColorTransformerConfigs),
+						OutputService = outputService
+					};
+
+					regionConfig.OutputConfigs.Add(outputConfig);
+				}
 
 				_regionConfigurations.Add(regionConfig);
 			}
@@ -87,33 +97,51 @@ namespace AmbientLightNet.Service
 			const int numSamples = 10;
 			const int maxFps = 30;
 
-			const int minMillis = 1000/maxFps;
+			const int minMillis = 1000 / maxFps;
 			var timeSamples = new Queue<int>(numSamples);
 
-			Task outputTask = null;
-			
+			var outputTasks = new List<Task>();
+
 			while (_running)
 			{
 				lock (_configLock)
 				{
 					DateTime startDt = DateTime.UtcNow;
-					
+
 					IList<Bitmap> bitmaps = _screenCaptureService.CaptureScreenRegions(_screenRegions, true);
 
 					for (var i = 0; i < _regionConfigurations.Count; i++)
 					{
 						var regionConfiguration = _regionConfigurations[i];
-						
+
 						Bitmap bitmap = bitmaps[i];
 
 						Color averageColor = regionConfiguration.ColorAveragingService.GetAverageColor(bitmap);
 
-						Color outputColor = regionConfiguration.ColorTransformers.Aggregate(averageColor, (color, transformer) => transformer.Transform(color));
+						Task.WhenAll(outputTasks.ToArray()).Wait();
+						outputTasks.Clear();
 
-						if (outputTask != null && !outputTask.IsCompleted)
-							outputTask.Wait();
+						foreach (var outputConfig in regionConfiguration.OutputConfigs)
+						{
+							Color outputColor = outputConfig.ColorTransformers.Aggregate(averageColor, (color, transformer) => transformer.Transform(color));
 
-						outputTask = Task.Run(() => regionConfiguration.OutputService.Output(outputColor));
+							if (outputConfig.LastColor != outputColor)
+							{
+								outputTasks.Add(Task.Run(() =>
+								{
+									try
+									{
+										outputConfig.OutputService.Output(outputColor);
+									}
+									catch (Exception ex)
+									{
+										Console.WriteLine("Output Color Failed: " + ex.ToString());
+									}
+								}));
+
+								outputConfig.LastColor = outputColor;
+							}
+						}
 					}
 
 					DateTime endDt = DateTime.UtcNow;
@@ -126,7 +154,7 @@ namespace AmbientLightNet.Service
 						Thread.Sleep(waitTime);
 						timeSpan += waitTime;
 					}
-					
+
 					if (timeSamples.Count == numSamples)
 					{
 						Console.WriteLine("{0:N0} fps", 1000 / timeSamples.Average());
@@ -151,7 +179,7 @@ namespace AmbientLightNet.Service
 
 		private static AmbiLightConfig ReadConfig(string fileName)
 		{
-			return JsonConvert.DeserializeObject<AmbiLightConfig>(File.ReadAllText(fileName, Encoding.UTF8), new JsonSerializerSettings() {MissingMemberHandling = MissingMemberHandling.Ignore});
+			return JsonConvert.DeserializeObject<AmbiLightConfig>(File.ReadAllText(fileName, Encoding.UTF8), new JsonSerializerSettings() { MissingMemberHandling = MissingMemberHandling.Ignore });
 		}
 
 		public void Stop()
@@ -173,12 +201,26 @@ namespace AmbientLightNet.Service
 		{
 			public ScreenRegion ScreenRegion { get; set; }
 			public IColorAveragingService ColorAveragingService { get; set; }
-			public IList<IColorTransformer> ColorTransformers { get; set; }
-			public OutputService OutputService { get; set; }
+			public IList<OutputConfiguration> OutputConfigs { get; set; }
 
 			public void Dispose()
 			{
 				ColorAveragingService.Dispose();
+				foreach (var outputConfig in OutputConfigs)
+				{
+					outputConfig.Dispose();
+				}
+			}
+		}
+
+		private class OutputConfiguration : IDisposable
+		{
+			public IList<IColorTransformer> ColorTransformers { get; set; }
+			public OutputService OutputService { get; set; }
+			public Color? LastColor { get; set; }
+
+			public void Dispose()
+			{
 				OutputService.Dispose();
 			}
 		}

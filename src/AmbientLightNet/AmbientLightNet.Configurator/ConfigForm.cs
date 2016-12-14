@@ -265,7 +265,7 @@ namespace AmbientLightNet.Configurator
 					Rectangle = new RectangleF(0, 0, 0, 0),
 					ScreenName = _selectedScreen.DeviceName
 				},
-				OutputInfo = null
+				Outputs = null
 			});
 
 			screenRegionsList.SelectedIndex = screenRegionsList.Items.Count - 1;
@@ -287,14 +287,14 @@ namespace AmbientLightNet.Configurator
 
 			var screenRegionOutput = (ScreenRegionOutput) screenRegionsList.Items[screenRegionsList.SelectedIndex];
 
-			changeOutputDialog.OutputInfo = screenRegionOutput.OutputInfo;
+			changeOutputDialog.OutputInfo = screenRegionOutput.Outputs.Count > 0 ? screenRegionOutput.Outputs[0].OutputInfo : null;
 
 			DialogResult result = changeOutputDialog.ShowDialog();
 
 			if (result != DialogResult.OK)
 				return;
 
-			screenRegionOutput.OutputInfo = changeOutputDialog.OutputInfo;
+			screenRegionOutput.Outputs = new[] { new Output() { OutputInfo = changeOutputDialog.OutputInfo } };
 
 			UpdateSelectedItem(screenRegionsList);
 		}
