@@ -125,7 +125,9 @@ namespace AmbientLightNet.Service
 						{
 							Color outputColor = outputConfig.ColorTransformers.Aggregate(averageColor, (color, transformer) => transformer.Transform(color));
 
-							if (outputConfig.LastColor != outputColor)
+							var utcNow = DateTime.UtcNow;
+
+							if (outputConfig.LastColor != outputColor || outputConfig.LastColorSetTime + TimeSpan.FromMilliseconds(200) > utcNow)
 							{
 								outputTasks.Add(Task.Run(() =>
 								{
@@ -140,6 +142,7 @@ namespace AmbientLightNet.Service
 								}));
 
 								outputConfig.LastColor = outputColor;
+								outputConfig.LastColorSetTime = utcNow;
 							}
 						}
 					}
@@ -218,6 +221,7 @@ namespace AmbientLightNet.Service
 			public IList<IColorTransformer> ColorTransformers { get; set; }
 			public OutputService OutputService { get; set; }
 			public Color? LastColor { get; set; }
+			public DateTime LastColorSetTime { get; set; }
 
 			public void Dispose()
 			{
