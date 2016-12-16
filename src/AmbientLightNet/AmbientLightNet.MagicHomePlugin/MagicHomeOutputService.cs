@@ -23,7 +23,7 @@ namespace AmbientLightNet.MagicHomePlugin
 
 		public override void Output(Color color)
 		{
-			_device.SetColor(color);
+			_device.SetColor(color, waitForResponse: false);
 		}
 
 		public override void Dispose()
