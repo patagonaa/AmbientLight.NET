@@ -7,6 +7,7 @@ using System.Text;
 using System.Windows.Forms;
 using AmbientLightNet.Infrastructure.AmbiLightConfig;
 using AmbientLightNet.Infrastructure.ScreenCapture;
+using AmbientLightNet.ScreenCapture.Infrastructure;
 using Newtonsoft.Json;
 
 namespace AmbientLightNet.Configurator
@@ -16,12 +17,15 @@ namespace AmbientLightNet.Configurator
 		private readonly Timer _updateImageTimer;
 		private readonly IScreenCaptureService _captureService;
 		private Screen _selectedScreen;
+		private Bitmap _lastBitmap;
 
 		public ConfigForm()
 		{
 			InitializeComponent();
 
-			_captureService = new GdiScreenCaptureService();
+			var captureServiceProvider = new ScreenCaptureServiceProvider();
+
+			_captureService = captureServiceProvider.Provide(false);
 
 			_updateImageTimer = new Timer();
 			_updateImageTimer.Interval = 100;
@@ -50,9 +54,22 @@ namespace AmbientLightNet.Configurator
 			string screenName = _selectedScreen.DeviceName;
 
 			var region = new ScreenRegion { ScreenName = screenName, Rectangle = new RectangleF(0, 0, 1, 1) };
-			Bitmap capturedImage = _captureService.CaptureScreenRegions(new List<ScreenRegion> {region})[0];
+			Bitmap imageToShow = _captureService.CaptureScreenRegions(new List<ScreenRegion> {region})[0];
 
-			e.Graphics.DrawImage(capturedImage, 0, 0, e.ClipRectangle.Width, e.ClipRectangle.Height);
+			if (imageToShow == null)
+			{
+				if (_lastBitmap == null)
+					return;
+				imageToShow = _lastBitmap;
+			}
+			else
+			{
+				if (_lastBitmap != null)
+					_lastBitmap.Dispose();
+				_lastBitmap = imageToShow;
+			}
+
+			e.Graphics.DrawImage(imageToShow, 0, 0, e.ClipRectangle.Width, e.ClipRectangle.Height);
 
 			foreach (ScreenRegionOutput screenRegionOutput in screenRegionsList.Items.Cast<ScreenRegionOutput>().Where(x => x.ScreenRegion.ScreenName == screenName))
 			{
@@ -63,8 +80,6 @@ namespace AmbientLightNet.Configurator
 					screenRegionRect.Width*e.ClipRectangle.Width,
 					screenRegionRect.Height*e.ClipRectangle.Height);
 			}
-
-			capturedImage.Dispose();
 		}
 
 		private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -265,7 +280,7 @@ namespace AmbientLightNet.Configurator
 					Rectangle = new RectangleF(0, 0, 0, 0),
 					ScreenName = _selectedScreen.DeviceName
 				},
-				OutputInfo = null
+				Outputs = null
 			});
 
 			screenRegionsList.SelectedIndex = screenRegionsList.Items.Count - 1;
@@ -287,14 +302,14 @@ namespace AmbientLightNet.Configurator
 
 			var screenRegionOutput = (ScreenRegionOutput) screenRegionsList.Items[screenRegionsList.SelectedIndex];
 
-			changeOutputDialog.OutputInfo = screenRegionOutput.OutputInfo;
+			changeOutputDialog.OutputInfo = screenRegionOutput.Outputs != null && screenRegionOutput.Outputs.Count > 0 ? screenRegionOutput.Outputs[0].OutputInfo : null;
 
 			DialogResult result = changeOutputDialog.ShowDialog();
 
 			if (result != DialogResult.OK)
 				return;
 
-			screenRegionOutput.OutputInfo = changeOutputDialog.OutputInfo;
+			screenRegionOutput.Outputs = new[] { new Output { OutputInfo = changeOutputDialog.OutputInfo } };
 
 			UpdateSelectedItem(screenRegionsList);
 		}

@@ -5,3 +5,4 @@ packages/
 *.csproj.user
 *.vspx
 *.diagsession
+*.suo

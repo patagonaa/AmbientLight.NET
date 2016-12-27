@@ -7,8 +7,8 @@ namespace AmbiLightNet.PluginBase
 	{
 		public virtual IOutputInfo OutputInfo
 		{
-			get { throw new NotImplementedException(); }
-			set { throw new NotImplementedException(); }
+			get { Console.WriteLine("???"); return null; }
+			set { Console.WriteLine("???"); }
 		}
 	}
 }

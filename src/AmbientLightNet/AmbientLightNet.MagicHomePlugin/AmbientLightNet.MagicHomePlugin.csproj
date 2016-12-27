@@ -44,6 +44,19 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AddressType.cs" />
+    <Compile Include="MagicHomeOutputManualConfigDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MagicHomeOutputManualConfigDialog.Designer.cs">
+      <DependentUpon>MagicHomeOutputManualConfigDialog.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MagicHomeOutputBroadcastConfigDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MagicHomeOutputBroadcastConfigDialog.Designer.cs">
+      <DependentUpon>MagicHomeOutputBroadcastConfigDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="MagicHomeOutputConfigDialog.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -62,6 +75,12 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="MagicHomeOutputManualConfigDialog.resx">
+      <DependentUpon>MagicHomeOutputManualConfigDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MagicHomeOutputBroadcastConfigDialog.resx">
+      <DependentUpon>MagicHomeOutputBroadcastConfigDialog.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="MagicHomeOutputConfigDialog.resx">
       <DependentUpon>MagicHomeOutputConfigDialog.cs</DependentUpon>
     </EmbeddedResource>
