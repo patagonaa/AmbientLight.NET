@@ -61,6 +61,10 @@
     <Compile Include="ScreenCapture\ScreenCaptureServiceProvider.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\AmbientLightNet.DesktopDuplicationScreenCapture\AmbientLightNet.DesktopDuplicationScreenCapture.csproj">
+      <Project>{F16141E1-E29A-4F07-8AA8-206D027F4B82}</Project>
+      <Name>AmbientLightNet.DesktopDuplicationScreenCapture</Name>
+    </ProjectReference>
     <ProjectReference Include="..\AmbientLightNet.GdiScreenCapture\AmbientLightNet.GdiScreenCapture.csproj">
       <Project>{E29E6C1F-8A37-4336-B93A-C19E2377591B}</Project>
       <Name>AmbientLightNet.GdiScreenCapture</Name>

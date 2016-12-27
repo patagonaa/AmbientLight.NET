@@ -1,6 +1,6 @@
-using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.Linq;
 using System.Windows.Forms;
 using AmbientLightNet.ScreenCapture.Infrastructure;
@@ -9,88 +9,63 @@ namespace AmbientLightNet.GdiScreenCapture
 {
 	public class GdiScreenCaptureService : IScreenCaptureService
 	{
-		private readonly Dictionary<IList<ScreenRegion>, IList<KeyValuePair<Bitmap, Graphics>>> _bitmapCache;
+		private readonly IScreenRegionBitmapProvider _bitmapProvider;
 
-		public GdiScreenCaptureService()
+		private readonly Bitmap _blackBitmap;
+
+		public GdiScreenCaptureService(bool useCache)
 		{
-			_bitmapCache = new Dictionary<IList<ScreenRegion>, IList<KeyValuePair<Bitmap, Graphics>>>(new ReferenceComparer<IList<ScreenRegion>>());
+			_bitmapProvider = useCache
+				? (IScreenRegionBitmapProvider) new CachedScreenRegionBitmapProvider()
+				: (IScreenRegionBitmapProvider) new NonCachedScreenRegionBitmapProvider();
+
+			_blackBitmap = new Bitmap(1, 1);
+			using (Graphics graphics = Graphics.FromImage(_blackBitmap))
+			{
+				graphics.FillRectangle(Brushes.Black, 0, 0, 1, 1);
+			}
 		}
 		
-		public IList<Bitmap> CaptureScreenRegions(IList<ScreenRegion> regions, bool useCache = false)
+		public IList<Bitmap> CaptureScreenRegions(IList<ScreenRegion> regions)
 		{
 			Screen[] allScreens = Screen.AllScreens;
-
-			IList<Bitmap> bitmaps = new List<Bitmap>();
-			IList<Graphics> graphicses = new List<Graphics>();
-
-			IList<KeyValuePair<Bitmap, Graphics>> cachedCollection;
-			bool cacheEntryExists = _bitmapCache.TryGetValue(regions, out cachedCollection);
-
-			if (useCache && cacheEntryExists)
-			{
-				bitmaps = cachedCollection.Select(x => x.Key).ToList();
-				if(bitmaps.Any(BitmapIsDisposed))
-					throw new InvalidOperationException("Do not dispose cached Bitmaps!");
-				graphicses = cachedCollection.Select(x => x.Value).ToList();
-			}
-			else
-			{
-				for (var i = 0; i < regions.Count; i++)
-				{
-					ScreenRegion region = regions[i];
-
-					Screen screen = allScreens.SingleOrDefault(x => x.DeviceName == region.ScreenName);
-
-					if (screen == null)
-						throw new InvalidOperationException(string.Format("screen {0} not found", region.ScreenName));
-
-					var width = (int)(screen.Bounds.Width * region.Rectangle.Width);
-					var height = (int)(screen.Bounds.Height * region.Rectangle.Height);
-
-					var bitmap = new Bitmap(width, height);
-					bitmaps.Add(bitmap);
-					graphicses.Add(Graphics.FromImage(bitmap));
-				}
-
-				if (useCache)
-				{
-					cachedCollection = new List<KeyValuePair<Bitmap, Graphics>>();
-					
-					for (var i = 0; i < regions.Count; i++)
-					{
-						cachedCollection.Add(new KeyValuePair<Bitmap, Graphics>(bitmaps[i], graphicses[i]));
-					}
-
-					_bitmapCache[regions] = cachedCollection;
-				}
-			}
+			var bitmaps = new List<Bitmap>();
 			
 			for (var i = 0; i < regions.Count; i++)
 			{
 				ScreenRegion region = regions[i];
-				Bitmap bitmap = bitmaps[i];
-				Graphics graphics = graphicses[i];
-
 				Screen screen = allScreens.SingleOrDefault(x => x.DeviceName == region.ScreenName);
 
-				int width = bitmap.Width;
-				int height = bitmap.Height;
+				int width;
+				int height;
 
-				if (screen == null)
+				Bitmap bitmap;
+				if (screen != null) // if screen is not available anymore (e.g. unplugged), keep using the image from the cache. if not available from the beginning, this will fail anyways
 				{
-					graphics.FillRectangle(Brushes.Black, 0, 0, width, height);
+					width = (int) (screen.Bounds.Width*region.Rectangle.Width);
+					height = (int) (screen.Bounds.Height*region.Rectangle.Height);
+					bitmap = _bitmapProvider.ProvideForScreenRegion(region, width, height, PixelFormat.Format24bppRgb);
 				}
 				else
 				{
-					var positionX = (int)(screen.Bounds.X + (screen.Bounds.Width * region.Rectangle.X));
-					var positionY = (int)(screen.Bounds.Y + (screen.Bounds.Height * region.Rectangle.Y));
-					
-					graphics.CopyFromScreen(positionX, positionY, 0, 0, new Size(width, height), CopyPixelOperation.SourceCopy);
+					width = 1;
+					height = 1;
+					bitmap = _blackBitmap;
 				}
-				
-				if (!useCache)
+
+				using (Graphics graphics = Graphics.FromImage(bitmap))
 				{
-					graphics.Dispose();
+					if (screen == null)
+					{
+						graphics.FillRectangle(Brushes.Black, 0, 0, width, height);
+					}
+					else
+					{
+						var positionX = (int) (screen.Bounds.X + (screen.Bounds.Width*region.Rectangle.X));
+						var positionY = (int) (screen.Bounds.Y + (screen.Bounds.Height*region.Rectangle.Y));
+					
+						graphics.CopyFromScreen(positionX, positionY, 0, 0, new Size(width, height), CopyPixelOperation.SourceCopy);
+					}
 				}
 
 				bitmaps.Add(bitmap);
@@ -99,57 +74,10 @@ namespace AmbientLightNet.GdiScreenCapture
 			return bitmaps;
 		}
 
-		public void ClearBitmapCache()
-		{
-			foreach (KeyValuePair<IList<ScreenRegion>, IList<KeyValuePair<Bitmap, Graphics>>> keyValuePair in _bitmapCache)
-			{
-				DisposeCacheEntry(keyValuePair.Value);
-			}
-			_bitmapCache.Clear();
-		}
-
-		private static bool BitmapIsDisposed(Bitmap bitmap)
-		{
-			try
-			{
-				bitmap.GetPixel(0, 0);
-				return false;
-			}
-			catch (ArgumentException)
-			{
-				return true;
-			}
-		}
-
-		private class ReferenceComparer<T> : IEqualityComparer<T>
-		{
-			public bool Equals(T x, T y)
-			{
-				return object.ReferenceEquals(x, y);
-			}
-
-			public int GetHashCode(T obj)
-			{
-				return obj == null ? 0 : obj.GetHashCode();
-			}
-		}
-
 		public void Dispose()
 		{
-			foreach (KeyValuePair<IList<ScreenRegion>, IList<KeyValuePair<Bitmap, Graphics>>> keyValuePair in _bitmapCache)
-			{
-				DisposeCacheEntry(keyValuePair.Value);
-			}
-			_bitmapCache.Clear();
-		}
-
-		private void DisposeCacheEntry(IEnumerable<KeyValuePair<Bitmap, Graphics>> entry)
-		{
-			foreach (KeyValuePair<Bitmap, Graphics> keyValuePair in entry)
-			{
-				keyValuePair.Key.Dispose();
-				keyValuePair.Value.Dispose();
-			}
+			_bitmapProvider.Dispose();
+			_blackBitmap.Dispose();
 		}
 	}
 }

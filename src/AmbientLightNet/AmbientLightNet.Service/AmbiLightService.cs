@@ -21,22 +21,21 @@ namespace AmbientLightNet.Service
 	{
 		private readonly string _configPath;
 		private bool _running;
-		private readonly IScreenCaptureService _screenCaptureService;
+		private IScreenCaptureService _screenCaptureService;
 		private readonly object _configLock = new object();
 		private IList<RegionConfiguration> _regionConfigurations;
 		private readonly ColorAveragingServiceProvider _colorAveragingServiceProvider;
 		private readonly ColorTransformerProvider _colorTransformerProvider;
 		private IList<ScreenRegion> _screenRegions; //needed as reference for caching
+		private readonly ScreenCaptureServiceProvider _screenCaptureServiceProvider;
 
 		public AmbiLightService(string configPath)
 		{
 			_configPath = configPath;
 
-			var captureServiceProvider = new ScreenCaptureServiceProvider();
+			_screenCaptureServiceProvider = new ScreenCaptureServiceProvider();
 			_colorAveragingServiceProvider = new ColorAveragingServiceProvider();
 			_colorTransformerProvider = new ColorTransformerProvider();
-
-			_screenCaptureService = captureServiceProvider.Provide();
 
 			AmbiLightConfig config = ReadConfig(_configPath);
 
@@ -45,6 +44,12 @@ namespace AmbientLightNet.Service
 
 		private void ApplyConfig(AmbiLightConfig config)
 		{
+			if(_screenCaptureService != null)
+				_screenCaptureService.Dispose();
+
+			_screenCaptureService = _screenCaptureServiceProvider.Provide(true);
+
+
 			List<IOutputPlugin> plugins = OutputPlugins.GetAvailablePlugins();
 
 			List<ScreenRegionOutput> regions = config.RegionsToOutput;
@@ -98,7 +103,8 @@ namespace AmbientLightNet.Service
 			_running = true;
 
 			const int numSamples = 10;
-			const int maxFps = 30;
+			const int maxFps = 60;
+			const int resendMilliseconds = 200;
 
 			const int minMillis = 1000 / maxFps;
 			var timeSamples = new Queue<int>(numSamples);
@@ -111,41 +117,50 @@ namespace AmbientLightNet.Service
 				{
 					DateTime startDt = DateTime.UtcNow;
 
-					IList<Bitmap> bitmaps = _screenCaptureService.CaptureScreenRegions(_screenRegions, true);
+					IList<Bitmap> bitmaps = _screenCaptureService.CaptureScreenRegions(_screenRegions);
 
 					for (var i = 0; i < _regionConfigurations.Count; i++)
 					{
-						var regionConfiguration = _regionConfigurations[i];
+						RegionConfiguration regionConfig = _regionConfigurations[i];
 
 						Bitmap bitmap = bitmaps[i];
 
-						Color averageColor = regionConfiguration.ColorAveragingService.GetAverageColor(bitmap);
+						Color averageColor;
+						if (bitmap == null) // can be null if nothing changed
+						{
+							averageColor = regionConfig.LastColor ?? Color.Black;
+						}
+						else
+						{
+							averageColor = regionConfig.ColorAveragingService.GetAverageColor(bitmap);
+						}
+						
+						var utcNow = DateTime.UtcNow;
+
+						regionConfig.LastColor = averageColor;
+						regionConfig.LastColorSetTime = utcNow;
 
 						Task.WhenAll(outputTasks.ToArray()).Wait();
 						outputTasks.Clear();
 
-						foreach (var outputConfig in regionConfiguration.OutputConfigs)
+						if (regionConfig.LastColor != averageColor || regionConfig.LastColorSetTime + TimeSpan.FromMilliseconds(resendMilliseconds) > utcNow)
 						{
-							Color outputColor = outputConfig.ColorTransformers.Aggregate(averageColor, (color, transformer) => transformer.Transform(color));
-
-							var utcNow = DateTime.UtcNow;
-
-							if (outputConfig.LastColor != outputColor || outputConfig.LastColorSetTime + TimeSpan.FromMilliseconds(200) > utcNow)
+							foreach (OutputConfiguration outputConfig in regionConfig.OutputConfigs)
 							{
+								OutputService outputService = outputConfig.OutputService;
+								Color outputColor = outputConfig.ColorTransformers.Aggregate(averageColor, (color, transformer) => transformer.Transform(color));
+								
 								outputTasks.Add(Task.Run(() =>
 								{
 									try
 									{
-										outputConfig.OutputService.Output(outputColor);
+										outputService.Output(outputColor);
 									}
 									catch (Exception ex)
 									{
 										Console.WriteLine("Output Color Failed: " + ex.ToString());
 									}
 								}));
-
-								outputConfig.LastColor = outputColor;
-								outputConfig.LastColorSetTime = utcNow;
 							}
 						}
 					}
@@ -179,7 +194,6 @@ namespace AmbientLightNet.Service
 				Console.WriteLine("Reloading config...");
 				AmbiLightConfig config = ReadConfig(_configPath);
 				ApplyConfig(config);
-				_screenCaptureService.ClearBitmapCache();
 			}
 		}
 
@@ -207,6 +221,8 @@ namespace AmbientLightNet.Service
 		{
 			public ScreenRegion ScreenRegion { get; set; }
 			public IColorAveragingService ColorAveragingService { get; set; }
+			public Color? LastColor { get; set; }
+			public DateTime LastColorSetTime { get; set; }
 			public IList<OutputConfiguration> OutputConfigs { get; set; }
 
 			public void Dispose()
@@ -223,9 +239,6 @@ namespace AmbientLightNet.Service
 		{
 			public IList<IColorTransformer> ColorTransformers { get; set; }
 			public OutputService OutputService { get; set; }
-			public Color? LastColor { get; set; }
-			public DateTime LastColorSetTime { get; set; }
-
 			public void Dispose()
 			{
 				OutputService.Dispose();

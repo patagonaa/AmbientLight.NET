@@ -71,8 +71,6 @@ namespace AmbientLightNet.MagicHomePlugin
 				}
 			}
 
-			devicesList.Items.Add("Select by IP & Port");
-
 			if (devicesList.Items.Count > 0)
 			{
 				devicesList.SelectedIndex = 0;

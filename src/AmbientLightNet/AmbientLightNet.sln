@@ -29,6 +29,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.GdiScreenCa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.ScreenCapture.Infrastructure", "AmbientLightNet.ScreenCapture.Infrastructure\AmbientLightNet.ScreenCapture.Infrastructure.csproj", "{724DD3BA-7F54-4691-A677-D4ACE4C28ABC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.DesktopDuplicationScreenCapture", "AmbientLightNet.DesktopDuplicationScreenCapture\AmbientLightNet.DesktopDuplicationScreenCapture.csproj", "{F16141E1-E29A-4F07-8AA8-206D027F4B82}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +73,10 @@ Global
 		{724DD3BA-7F54-4691-A677-D4ACE4C28ABC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{724DD3BA-7F54-4691-A677-D4ACE4C28ABC}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{724DD3BA-7F54-4691-A677-D4ACE4C28ABC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F16141E1-E29A-4F07-8AA8-206D027F4B82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F16141E1-E29A-4F07-8AA8-206D027F4B82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F16141E1-E29A-4F07-8AA8-206D027F4B82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F16141E1-E29A-4F07-8AA8-206D027F4B82}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -83,5 +89,6 @@ Global
 		{DBEDEDB2-3DEC-493F-AF6F-9A0E50576011} = {42A10420-68C9-415E-B97F-C1FEF90DDF2F}
 		{E29E6C1F-8A37-4336-B93A-C19E2377591B} = {267F5E50-D1E4-448E-85D9-AE94EF40CDB8}
 		{724DD3BA-7F54-4691-A677-D4ACE4C28ABC} = {267F5E50-D1E4-448E-85D9-AE94EF40CDB8}
+		{F16141E1-E29A-4F07-8AA8-206D027F4B82} = {267F5E50-D1E4-448E-85D9-AE94EF40CDB8}
 	EndGlobalSection
 EndGlobal

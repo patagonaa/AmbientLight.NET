@@ -1,13 +1,13 @@
-﻿using AmbientLightNet.GdiScreenCapture;
+﻿using AmbientLightNet.DesktopDuplicationScreenCapture;
 using AmbientLightNet.ScreenCapture.Infrastructure;
 
 namespace AmbientLightNet.Infrastructure.ScreenCapture
 {
 	public class ScreenCaptureServiceProvider
 	{
-		public IScreenCaptureService Provide()
+		public IScreenCaptureService Provide(bool useCache)
 		{
-			return new GdiScreenCaptureService();
+			return new DesktopDuplicationScreenCaptureService(useCache);
 		}
 	}
 }

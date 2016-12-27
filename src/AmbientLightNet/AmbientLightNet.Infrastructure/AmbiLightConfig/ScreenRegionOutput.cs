@@ -36,5 +36,10 @@ namespace AmbientLightNet.Infrastructure.AmbiLightConfig
 			info.AddValue("Outputs", Outputs);
 			info.AddValue("ColorAveragingConfig", ColorAveragingConfig);
 		}
+
+		public override string ToString()
+		{
+			return ScreenRegion == null ? "" : ScreenRegion.ToString();
+		}
 	}
 }

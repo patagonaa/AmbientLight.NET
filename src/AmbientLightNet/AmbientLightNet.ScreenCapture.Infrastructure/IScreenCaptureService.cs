@@ -6,7 +6,6 @@ namespace AmbientLightNet.ScreenCapture.Infrastructure
 {
 	public interface IScreenCaptureService : IDisposable
 	{
-		IList<Bitmap> CaptureScreenRegions(IList<ScreenRegion> regions, bool useCache = false);
-		void ClearBitmapCache();
+		IList<Bitmap> CaptureScreenRegions(IList<ScreenRegion> regions);
 	}
 }
