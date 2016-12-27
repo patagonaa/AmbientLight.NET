@@ -2,7 +2,7 @@ bin/
 obj/
 packages/
 .vs/
-*.csproj.user
+*.user
 *.vspx
 *.diagsession
 *.suo

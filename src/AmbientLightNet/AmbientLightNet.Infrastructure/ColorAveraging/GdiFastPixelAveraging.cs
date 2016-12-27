@@ -30,10 +30,26 @@ namespace AmbientLightNet.Infrastructure.ColorAveraging
 			int bitmapWidth = bitmap.Width;
 			int bitmapHeight = bitmap.Height;
 
-			BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, bitmapWidth, bitmapHeight), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+			int bytesPerPixel;
 
-			int dataLength = bitmapData.Stride * bitmapData.Height;
-			
+			PixelFormat pixelFormat = bitmap.PixelFormat;
+			switch (pixelFormat)
+			{
+				case PixelFormat.Format24bppRgb:
+					bytesPerPixel = 3;
+					break;
+				case PixelFormat.Format32bppRgb:
+				case PixelFormat.Format32bppArgb:
+					bytesPerPixel = 4;
+					break;
+				default:
+					throw new ArgumentOutOfRangeException();
+			}
+
+			BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, bitmapWidth, bitmapHeight), ImageLockMode.ReadOnly, pixelFormat);
+
+			int dataLength = bitmapData.Stride*bitmapData.Height;
+
 			var i = 0;
 			long rValues = 0;
 			long gValues = 0;
@@ -49,26 +65,24 @@ namespace AmbientLightNet.Infrastructure.ColorAveraging
 				Marshal.Copy(bitmapData.Scan0, _data, 0, dataLength);
 				int stride = bitmapData.Stride;
 				bitmap.UnlockBits(bitmapData);
-				
-				const int bytesPerPixel = 4;
 
 				for (var column = 0; column < bitmapHeight; column += 1 + _skipColumns)
 				{
-					int columnPos = column * stride;
+					int columnPos = column*stride;
 					for (var row = 0; row < bitmapWidth; row += 1 + _skipRows)
 					{
-						int rowPos = columnPos + row * bytesPerPixel;
+						int rowPos = columnPos + row*bytesPerPixel;
 						// var a = _data[rowPos + 3];
 						rValues += _data[rowPos + 2];
 						gValues += _data[rowPos + 1];
 						bValues += _data[rowPos];
-						
+
 						i++;
 					}
 				}
 			}
 
-			return Color.FromArgb(255, (byte)(rValues/i), (byte) (gValues/i), (byte) (bValues/i));
+			return Color.FromArgb(255, (byte) (rValues/i), (byte) (gValues/i), (byte) (bValues/i));
 		}
 
 		public void Dispose()

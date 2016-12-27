@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using AmbientLightNet.ScreenCapture.Infrastructure;
 using SharpDX;
 using SharpDX.Direct3D11;
@@ -104,9 +105,12 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 
 			const int bytesPerPixel = 4;
 			var rowBytes = (uint)(width * bytesPerPixel);
+
 			for (var y = 0; y < height; y++)
 			{
-				memcpy(destData.Scan0 + (destData.Stride * y), src.DataPointer + (src.RowPitch * (y + srcPositionY) + (srcPositionX * bytesPerPixel)), rowBytes);
+				IntPtr dstPtr = destData.Scan0 + (destData.Stride * y);
+				IntPtr srcPtr = src.DataPointer + (src.RowPitch * (y + srcPositionY) + (srcPositionX * bytesPerPixel));
+				memcpy(dstPtr, srcPtr, rowBytes);
 			}
 
 			dest.UnlockBits(destData);
