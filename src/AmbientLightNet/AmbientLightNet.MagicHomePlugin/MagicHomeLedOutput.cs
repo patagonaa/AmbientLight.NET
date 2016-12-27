@@ -21,7 +21,7 @@ namespace AmbientLightNet.MagicHomePlugin
 		{
 			var toReturn = new Dictionary<string, string>
 			{
-				{"DeviceType", ((int)DeviceType).ToString(CultureInfo.InvariantCulture)},
+				{"DeviceType", DeviceType.ToString()},
 				{"AddressType", AddressType.ToString()}
 			};
 
@@ -44,12 +44,12 @@ namespace AmbientLightNet.MagicHomePlugin
 
 		public void Deserialize(Dictionary<string, string> dictionary)
 		{
-			DeviceType = (DeviceType) int.Parse(dictionary["DeviceType"], CultureInfo.InvariantCulture);
+			DeviceType = (DeviceType) Enum.Parse(typeof (DeviceType), dictionary["DeviceType"]);
             AddressType = AddressType.MacAddress;
 
             if (dictionary.ContainsKey("AddressType"))
             {
-                AddressType = (AddressType)Enum.Parse(typeof(AddressType), dictionary["AddressType"]);
+	            AddressType = (AddressType) Enum.Parse(typeof (AddressType), dictionary["AddressType"]);
             }
 
 			switch (AddressType)

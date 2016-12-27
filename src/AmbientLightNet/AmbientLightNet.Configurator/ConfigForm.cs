@@ -147,7 +147,7 @@ namespace AmbientLightNet.Configurator
 
 			config.RegionsToOutput = screenRegionsList.Items.Cast<ScreenRegionOutput>().ToList();
 
-			return JsonConvert.SerializeObject(config);
+			return JsonConvert.SerializeObject(config, Formatting.Indented);
 		}
 
 		private void SetScreenClickMode(ScreenClickMode mode)
