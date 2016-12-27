@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
-using AmbiLightNet.PluginBase;
+using AmbientLightNet.ScreenCapture.Infrastructure;
 
 namespace AmbientLightNet.Infrastructure.AmbiLightConfig
 {

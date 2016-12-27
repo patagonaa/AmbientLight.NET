@@ -1,21 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{B861287D-B449-4EE7-8A47-0AF65EDCB710}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <ProjectGuid>{724DD3BA-7F54-4691-A677-D4ACE4C28ABC}</ProjectGuid>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>AmbientLightNet.Service</RootNamespace>
-    <AssemblyName>AmbientLightNet.Service</AssemblyName>
+    <RootNamespace>AmbientLightNet.ScreenCapture.Infrastructure</RootNamespace>
+    <AssemblyName>AmbientLightNet.ScreenCapture.Infrastructure</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -25,7 +22,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
@@ -34,10 +30,6 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.9.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Drawing" />
@@ -45,33 +37,12 @@
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AmbiLightService.cs" />
-    <Compile Include="ColorAveragingServiceProvider.cs" />
-    <Compile Include="ColorTransformerProvider.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="IScreenCaptureService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\AmbientLightNet.Infrastructure\AmbientLightNet.Infrastructure.csproj">
-      <Project>{22110CB7-D74B-4348-8FBD-146BF60E104E}</Project>
-      <Name>AmbientLightNet.Infrastructure</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\AmbientLightNet.ScreenCapture.Infrastructure\AmbientLightNet.ScreenCapture.Infrastructure.csproj">
-      <Project>{724DD3BA-7F54-4691-A677-D4ACE4C28ABC}</Project>
-      <Name>AmbientLightNet.ScreenCapture.Infrastructure</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\AmbiLightNet.PluginBase\AmbiLightNet.PluginBase.csproj">
-      <Project>{CD11574C-65F7-439A-860C-7C5A37B8D9E1}</Project>
-      <Name>AmbiLightNet.PluginBase</Name>
-    </ProjectReference>
+    <Compile Include="ScreenRegion.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

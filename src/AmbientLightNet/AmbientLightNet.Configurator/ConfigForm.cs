@@ -7,6 +7,7 @@ using System.Text;
 using System.Windows.Forms;
 using AmbientLightNet.Infrastructure.AmbiLightConfig;
 using AmbientLightNet.Infrastructure.ScreenCapture;
+using AmbientLightNet.ScreenCapture.Infrastructure;
 using Newtonsoft.Json;
 
 namespace AmbientLightNet.Configurator
@@ -21,7 +22,9 @@ namespace AmbientLightNet.Configurator
 		{
 			InitializeComponent();
 
-			_captureService = new GdiScreenCaptureService();
+			var captureServiceProvider = new ScreenCaptureServiceProvider();
+
+			_captureService = captureServiceProvider.Provide();
 
 			_updateImageTimer = new Timer();
 			_updateImageTimer.Interval = 100;

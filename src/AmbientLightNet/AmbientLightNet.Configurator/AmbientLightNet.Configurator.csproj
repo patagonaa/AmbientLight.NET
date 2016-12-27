@@ -98,6 +98,10 @@
       <Project>{22110CB7-D74B-4348-8FBD-146BF60E104E}</Project>
       <Name>AmbientLightNet.Infrastructure</Name>
     </ProjectReference>
+    <ProjectReference Include="..\AmbientLightNet.ScreenCapture.Infrastructure\AmbientLightNet.ScreenCapture.Infrastructure.csproj">
+      <Project>{724DD3BA-7F54-4691-A677-D4ACE4C28ABC}</Project>
+      <Name>AmbientLightNet.ScreenCapture.Infrastructure</Name>
+    </ProjectReference>
     <ProjectReference Include="..\AmbiLightNet.PluginBase\AmbiLightNet.PluginBase.csproj">
       <Project>{CD11574C-65F7-439A-860C-7C5A37B8D9E1}</Project>
       <Name>AmbiLightNet.PluginBase</Name>

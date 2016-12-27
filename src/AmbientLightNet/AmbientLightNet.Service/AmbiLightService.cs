@@ -11,6 +11,7 @@ using AmbientLightNet.Infrastructure.AmbiLightConfig;
 using AmbientLightNet.Infrastructure.ColorAveraging;
 using AmbientLightNet.Infrastructure.ColorTransformer;
 using AmbientLightNet.Infrastructure.ScreenCapture;
+using AmbientLightNet.ScreenCapture.Infrastructure;
 using AmbiLightNet.PluginBase;
 using Newtonsoft.Json;
 
@@ -30,10 +31,12 @@ namespace AmbientLightNet.Service
 		public AmbiLightService(string configPath)
 		{
 			_configPath = configPath;
-			_screenCaptureService = new GdiScreenCaptureService();
 
+			var captureServiceProvider = new ScreenCaptureServiceProvider();
 			_colorAveragingServiceProvider = new ColorAveragingServiceProvider();
 			_colorTransformerProvider = new ColorTransformerProvider();
+
+			_screenCaptureService = captureServiceProvider.Provide();
 
 			AmbiLightConfig config = ReadConfig(_configPath);
 
