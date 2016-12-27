@@ -25,7 +25,7 @@ namespace AmbientLightNet.Service
 				ConstructorInfo ctor = x.Type.GetConstructor(new[] { typeof(IDictionary<string, object>) });
 
 				if (ctor == null)
-					throw new InvalidOperationException(string.Format((string) "Color Transformer {0} is missing constructor with config", (object) x.Type.Name));
+					throw new InvalidOperationException(string.Format("Color Transformer {0} is missing constructor with config", x.Type.Name));
 
 				return (IColorTransformer) ctor.Invoke(new object[] {x.Config});
 			}).ToList();

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -13,8 +14,8 @@ namespace AmbientLightNet.Infrastructure.ColorAveraging
 
 		public GdiFastPixelAveraging(IDictionary<string, object> config)
 			: this(
-				(int) config["skipColumns"],
-				(int) config["skipRows"])
+				Convert.ToInt32(config["skipColumns"]),
+				Convert.ToInt32(config["skipRows"]))
 		{
 		}
 

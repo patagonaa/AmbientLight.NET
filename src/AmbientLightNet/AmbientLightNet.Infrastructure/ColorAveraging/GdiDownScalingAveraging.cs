@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -14,8 +15,8 @@ namespace AmbientLightNet.Infrastructure.ColorAveraging
 
 		public GdiDownScalingAveraging(IDictionary<string, object> config)
 			: this(
-				(int) config["width"],
-				(int) config["height"],
+				Convert.ToInt32(config["width"]),
+				Convert.ToInt32(config["height"]),
 				(InterpolationMode) config["interpolationMode"])
 		{
 		}

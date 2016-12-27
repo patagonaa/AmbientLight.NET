@@ -12,9 +12,9 @@ namespace AmbientLightNet.Infrastructure.ColorTransformer
 
 		public BrightnessColorTransformer(IDictionary<string, object> config)
 			: this(
-				(double) config["factorR"],
-				(double) config["factorG"],
-				(double) config["factorB"])
+				Convert.ToDouble(config["factorR"]),
+				Convert.ToDouble(config["factorG"]),
+				Convert.ToDouble(config["factorB"]))
 		{
 		}
 

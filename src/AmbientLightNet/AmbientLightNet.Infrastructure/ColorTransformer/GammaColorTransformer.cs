@@ -12,9 +12,9 @@ namespace AmbientLightNet.Infrastructure.ColorTransformer
 
 		public GammaColorTransformer(IDictionary<string, object> config)
 			: this(
-				(double) config["gammaR"],
-				(double) config["gammaG"],
-				(double) config["gammaB"])
+				Convert.ToDouble(config["gammaR"]),
+				Convert.ToDouble(config["gammaG"]),
+				Convert.ToDouble(config["gammaB"]))
 		{
 		}
 
