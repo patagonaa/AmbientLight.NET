@@ -22,19 +22,12 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 		private readonly IDictionary<string, Capture> _capturesByScreen = new Dictionary<string, Capture>();
 
 		private readonly IScreenRegionBitmapProvider _bitmapProvider;
-		private readonly Bitmap _blackBitmap;
 
 		public DesktopDuplicationScreenCaptureService(bool useCache)
 		{
 			_bitmapProvider = useCache
 				? (IScreenRegionBitmapProvider) new CachedScreenRegionBitmapProvider()
 				: (IScreenRegionBitmapProvider) new NonCachedScreenRegionBitmapProvider();
-
-			_blackBitmap = new Bitmap(1, 1);
-			using (Graphics graphics = Graphics.FromImage(_blackBitmap))
-			{
-				graphics.FillRectangle(Brushes.Black, 0, 0, 1, 1);
-			}
 		}
 
 		public IList<Bitmap> CaptureScreenRegions(IList<ScreenRegion> regions)
@@ -43,52 +36,43 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 
 			var regionsByScreen = regions.GroupBy(x => x.ScreenName).ToList();
 
-			//if only one screen is captured, wait one second or until something changes.
-			//if there are multiple screens we can't wait until theres a change on every screen, so we only wait 10 milliseconds
-			var timeoutMilliseconds = regionsByScreen.Count > 1 ? 10 : 1000;
-			
-			//foreach (IGrouping<string, ScreenRegion> grouping in regionsByScreen)
-			Parallel.ForEach(regionsByScreen, grouping =>
+			if (regionsByScreen.Count == 0)
+				return new List<Bitmap>();
+
+			if (regionsByScreen.Count == 1)
 			{
+				//if only one screen is captured, wait one second or until something changes.
+				var timeoutMilliseconds = 1000;
+
+				var screenName = regionsByScreen[0].Key;
 				Capture capture;
-				if (!_capturesByScreen.TryGetValue(grouping.Key, out capture))
-					_capturesByScreen[grouping.Key] = capture = new Capture(grouping.Key);
+				if (!_capturesByScreen.TryGetValue(screenName, out capture))
+					_capturesByScreen[screenName] = capture = new Capture(screenName);
 
-				OutputDuplicateFrameInformation frameInformation = default(OutputDuplicateFrameInformation);
+				CaptureFrameIfAvailable(capture, timeoutMilliseconds);
+			}
+			else
+			{
+				//if there are multiple screens we can't wait until theres a change on every screen, so we only wait 10 milliseconds
+				var timeoutMilliseconds = 10;
 
-				var frameAvailable = false;
-				try
+				//also we wait in parallel
+				Parallel.ForEach(regionsByScreen, grouping =>
 				{
-					frameAvailable = WaitForFrame(capture, timeoutMilliseconds, out frameInformation);
-				}
-				catch (ScreenNotFoundException)
-				{
-					try
-					{
-						var oldCapture = capture;
-						capture = new Capture(grouping.Key);
-						_capturesByScreen[grouping.Key] = capture;
-						oldCapture.Dispose();
-					}
-					catch (ScreenNotFoundException)
-					{
-					}
+					Capture capture;
+					string screenName = grouping.Key;
+					if (!_capturesByScreen.TryGetValue(screenName, out capture))
+						_capturesByScreen[screenName] = capture = new Capture(screenName);
 
-					foreach (ScreenRegion screenRegion in grouping)
-					{
-						regionBitmapsDictionary[screenRegion] = _blackBitmap; //TODO: this will not work if cache is off
-					}
-				}
-
-				capture.LastFrameInfo = frameAvailable ? frameInformation : (OutputDuplicateFrameInformation?) null;
-			//}
-			});
+					CaptureFrameIfAvailable(capture, timeoutMilliseconds);
+				});
+			}
 
 			foreach (IGrouping<string, ScreenRegion> grouping in regionsByScreen)
 			{
 				Capture capture = _capturesByScreen[grouping.Key];
 
-				if (capture.LastFrameInfo == null) // last frame does not exist or timed out
+				if (capture.LastFrameInfo == null) //last frame does not exist or timed out
 					continue;
 
 				FrameMetadata metaData = GetMetadata(capture, capture.LastFrameInfo.Value);
@@ -133,6 +117,60 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 			}
 
 			return toReturn;
+		}
+
+		private void CaptureFrameIfAvailable(Capture capture, int timeoutMilliseconds)
+		{
+			OutputDuplicateFrameInformation frameInformation = default(OutputDuplicateFrameInformation);
+
+			bool frameAvailable;
+
+			if (!capture.Initialized)
+			{
+				try
+				{
+					capture.ReInitialize();
+				}
+				catch (ScreenNotFoundException)
+				{
+					capture.LastFrameInfo = null;
+					return;
+				}
+			}
+
+			try
+			{
+				Resource desktopResource;
+
+				capture.OutputDuplication.AcquireNextFrame(timeoutMilliseconds, out frameInformation, out desktopResource);
+				frameAvailable = true;
+
+				using (var tempTexture = desktopResource.QueryInterface<Texture2D>())
+				{
+					capture.Device.ImmediateContext.CopyResource(tempTexture, capture.Texture);
+				}
+
+				desktopResource.Dispose();
+			}
+			catch (SharpDXException ex)
+			{
+				if (ex.ResultCode.Code == ResultCode.WaitTimeout.Result.Code)
+				{
+					frameAvailable = false;
+				}
+				else if (ex.ResultCode.Code == ResultCode.AccessLost.Code)
+				{
+					capture.Dispose();
+					
+					frameAvailable = false;
+				}
+				else
+				{
+					throw;
+				}
+			}
+
+			capture.LastFrameInfo = frameAvailable ? frameInformation : (OutputDuplicateFrameInformation?) null;
 		}
 
 		private bool RegionIsDirty(Rectangle screenRegionRectangle, RawRectangle[] dirtyRectangles, OutputDuplicateMoveRectangle[] moveRectangles)
@@ -184,39 +222,6 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 			return toReturn;
 		}
 
-		private bool WaitForFrame(Capture capture, int timeoutMilliseconds, out OutputDuplicateFrameInformation frameInformation)
-		{
-			try
-			{
-				Resource desktopResource;
-				capture.OutputDuplication.AcquireNextFrame(timeoutMilliseconds, out frameInformation, out desktopResource);
-
-				using (var tempTexture = desktopResource.QueryInterface<Texture2D>())
-				{
-					capture.Device.ImmediateContext.CopyResource(tempTexture, capture.Texture);
-				}
-
-				desktopResource.Dispose();
-			}
-			catch (SharpDXException ex)
-			{
-				frameInformation = default(OutputDuplicateFrameInformation);
-
-				if (ex.ResultCode.Code == ResultCode.WaitTimeout.Result.Code)
-				{
-					return false;
-				}
-
-				if (ex.ResultCode.Code == ResultCode.AccessLost.Code)
-				{
-					throw new ScreenNotFoundException(capture.ScreenName);
-				}
-				throw;
-			}
-
-			return true;
-		}
-
 		public void Dispose()
 		{
 			foreach (Capture capture in _capturesByScreen.Values)
@@ -232,6 +237,17 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 			public Capture(string screenName)
 			{
 				ScreenName = screenName;
+				InitInternal();
+			}
+
+			public void ReInitialize()
+			{
+				CleanupInternal();
+				InitInternal();
+			}
+
+			private void InitInternal()
+			{
 				var factory = new Factory1();
 
 				Adapter[] adapters = factory.Adapters;
@@ -242,11 +258,11 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 					{
 						OutputDescription outputDescription = output.Description;
 
-						if (!outputDescription.IsAttachedToDesktop || outputDescription.DeviceName.Trim('\0') != screenName) 
+						if (!outputDescription.IsAttachedToDesktop || outputDescription.DeviceName.Trim('\0') != ScreenName)
 							continue;
 
 						RawRectangle desktopBounds = outputDescription.DesktopBounds;
-						DesktopBounds = desktopBounds;
+						_desktopBounds = desktopBounds;
 						var textureDescription = new Texture2DDescription
 						{
 							CpuAccessFlags = CpuAccessFlags.Read,
@@ -257,35 +273,71 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 							OptionFlags = ResourceOptionFlags.None,
 							MipLevels = 1,
 							ArraySize = 1,
-							SampleDescription = { Count = 1, Quality = 0 },
+							SampleDescription = {Count = 1, Quality = 0},
 							Usage = ResourceUsage.Staging
 						};
 
-						Device = new Device(adapter);
+						_device = new Device(adapter);
 
 						var output1 = output.QueryInterface<Output1>();
-						OutputDuplication = output1.DuplicateOutput(Device);
-						Texture = new Texture2D(Device, textureDescription);
+						_outputDuplication = output1.DuplicateOutput(_device);
+						_texture = new Texture2D(_device, textureDescription);
+						_initialized = true;
 						return;
 					}
 				}
 
-				throw new ScreenNotFoundException(screenName);
+				throw new ScreenNotFoundException(ScreenName);
 			}
 
 			public readonly string ScreenName;
-			public readonly RawRectangle DesktopBounds;
-			public readonly Device Device;
-			public readonly OutputDuplication OutputDuplication;
-			public readonly Texture2D Texture;
-			
+			private RawRectangle _desktopBounds;
+			private Device _device;
+			private OutputDuplication _outputDuplication;
+			private Texture2D _texture;
+			private bool _initialized;
+
 			public OutputDuplicateFrameInformation? LastFrameInfo { get; set; }
+
+			public RawRectangle DesktopBounds
+			{
+				get { return _desktopBounds; }
+			}
+
+			public Device Device
+			{
+				get { return _device; }
+			}
+
+			public OutputDuplication OutputDuplication
+			{
+				get { return _outputDuplication; }
+			}
+
+			public Texture2D Texture
+			{
+				get { return _texture; }
+			}
+
+			public bool Initialized
+			{
+				get { return _initialized; }
+			}
 
 			public void Dispose()
 			{
-				Device.Dispose();
-				OutputDuplication.Dispose();
-				Texture.Dispose();
+				CleanupInternal();
+				_initialized = false;
+			}
+
+			private void CleanupInternal()
+			{
+				if (_device != null)
+					_device.Dispose();
+				if (_outputDuplication != null)
+					_outputDuplication.Dispose();
+				if (_texture != null)
+					_texture.Dispose();
 			}
 		}
 
