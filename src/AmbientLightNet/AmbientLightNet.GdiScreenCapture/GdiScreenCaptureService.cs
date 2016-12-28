@@ -36,36 +36,25 @@ namespace AmbientLightNet.GdiScreenCapture
 				ScreenRegion region = regions[i];
 				Screen screen = allScreens.SingleOrDefault(x => x.DeviceName == region.ScreenName);
 
-				int width;
-				int height;
-
 				Bitmap bitmap;
-				if (screen != null) // if screen is not available anymore (e.g. unplugged), keep using the image from the cache. if not available from the beginning, this will fail anyways
-				{
-					width = (int) (screen.Bounds.Width*region.Rectangle.Width);
-					height = (int) (screen.Bounds.Height*region.Rectangle.Height);
-					bitmap = _bitmapProvider.ProvideForScreenRegion(region, width, height, PixelFormat.Format24bppRgb);
-				}
-				else
-				{
-					width = 1;
-					height = 1;
-					bitmap = _blackBitmap;
-				}
 
-				using (Graphics graphics = Graphics.FromImage(bitmap))
+				if (screen != null)
 				{
-					if (screen == null)
-					{
-						graphics.FillRectangle(Brushes.Black, 0, 0, width, height);
-					}
-					else
+					var width = (int) (screen.Bounds.Width*region.Rectangle.Width);
+					var height = (int) (screen.Bounds.Height*region.Rectangle.Height);
+					bitmap = _bitmapProvider.ProvideForScreenRegion(region, width, height, PixelFormat.Format24bppRgb);
+
+					using (Graphics graphics = Graphics.FromImage(bitmap))
 					{
 						var positionX = (int) (screen.Bounds.X + (screen.Bounds.Width*region.Rectangle.X));
 						var positionY = (int) (screen.Bounds.Y + (screen.Bounds.Height*region.Rectangle.Y));
-					
+
 						graphics.CopyFromScreen(positionX, positionY, 0, 0, new Size(width, height), CopyPixelOperation.SourceCopy);
 					}
+				}
+				else
+				{
+					bitmap = _blackBitmap; //TODO: this will not work if cache is off
 				}
 
 				bitmaps.Add(bitmap);

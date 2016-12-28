@@ -19,33 +19,79 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 {
 	public class DesktopDuplicationScreenCaptureService : IScreenCaptureService
 	{
-		private const int FrameTimeout = 5;
-
 		private readonly IDictionary<string, Capture> _capturesByScreen = new Dictionary<string, Capture>();
 
 		private readonly IScreenRegionBitmapProvider _bitmapProvider;
+		private readonly Bitmap _blackBitmap;
 
 		public DesktopDuplicationScreenCaptureService(bool useCache)
 		{
 			_bitmapProvider = useCache
 				? (IScreenRegionBitmapProvider) new CachedScreenRegionBitmapProvider()
 				: (IScreenRegionBitmapProvider) new NonCachedScreenRegionBitmapProvider();
+
+			_blackBitmap = new Bitmap(1, 1);
+			using (Graphics graphics = Graphics.FromImage(_blackBitmap))
+			{
+				graphics.FillRectangle(Brushes.Black, 0, 0, 1, 1);
+			}
 		}
 
 		public IList<Bitmap> CaptureScreenRegions(IList<ScreenRegion> regions)
 		{
 			var regionBitmapsDictionary = new Dictionary<ScreenRegion, Bitmap>();
-			foreach (IGrouping<string, ScreenRegion> grouping in regions.GroupBy(x => x.ScreenName))
+
+			var regionsByScreen = regions.GroupBy(x => x.ScreenName).ToList();
+
+			//if only one screen is captured, wait one second or until something changes.
+			//if there are multiple screens we can't wait until theres a change on every screen, so we only wait 10 milliseconds
+			var timeoutMilliseconds = regionsByScreen.Count > 1 ? 10 : 1000;
+			
+			//foreach (IGrouping<string, ScreenRegion> grouping in regionsByScreen)
+			Parallel.ForEach(regionsByScreen, grouping =>
 			{
 				Capture capture;
 				if (!_capturesByScreen.TryGetValue(grouping.Key, out capture))
 					_capturesByScreen[grouping.Key] = capture = new Capture(grouping.Key);
 
-				OutputDuplicateFrameInformation frameInformation;
-				if (!CaptureFrame(capture, out frameInformation)) 
-					continue; // if false, capture timed out
+				OutputDuplicateFrameInformation frameInformation = default(OutputDuplicateFrameInformation);
 
-				FrameMetadata metaData = GetMetadata(capture, frameInformation);
+				var frameAvailable = false;
+				try
+				{
+					frameAvailable = WaitForFrame(capture, timeoutMilliseconds, out frameInformation);
+				}
+				catch (ScreenNotFoundException)
+				{
+					try
+					{
+						var oldCapture = capture;
+						capture = new Capture(grouping.Key);
+						_capturesByScreen[grouping.Key] = capture;
+						oldCapture.Dispose();
+					}
+					catch (ScreenNotFoundException)
+					{
+					}
+
+					foreach (ScreenRegion screenRegion in grouping)
+					{
+						regionBitmapsDictionary[screenRegion] = _blackBitmap; //TODO: this will not work if cache is off
+					}
+				}
+
+				capture.LastFrameInfo = frameAvailable ? frameInformation : (OutputDuplicateFrameInformation?) null;
+			//}
+			});
+
+			foreach (IGrouping<string, ScreenRegion> grouping in regionsByScreen)
+			{
+				Capture capture = _capturesByScreen[grouping.Key];
+
+				if (capture.LastFrameInfo == null) // last frame does not exist or timed out
+					continue;
+
+				FrameMetadata metaData = GetMetadata(capture, capture.LastFrameInfo.Value);
 
 				if (metaData != null) // if null, there are no dirty regions in this frame
 				{
@@ -75,6 +121,7 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 
 					capture.Device.ImmediateContext.UnmapSubresource(capture.Texture, 0);
 				}
+
 				capture.OutputDuplication.ReleaseFrame();
 			}
 
@@ -90,27 +137,25 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 
 		private bool RegionIsDirty(Rectangle screenRegionRectangle, RawRectangle[] dirtyRectangles, OutputDuplicateMoveRectangle[] moveRectangles)
 		{
-			return dirtyRectangles.Any(x => screenRegionRectangle.IntersectsWith(x.ToRectangle())) || 
-				moveRectangles.Select(x => x.DestinationRect).Any(x => screenRegionRectangle.IntersectsWith(x.ToRectangle()));
+			return dirtyRectangles.Select(x => x.ToRectangle()).Any(screenRegionRectangle.IntersectsWith) || 
+				moveRectangles.Select(x => x.DestinationRect.ToRectangle()).Any(screenRegionRectangle.IntersectsWith);
 		}
 
-		[DllImport("msvcrt.dll", EntryPoint = "memcpy", CallingConvention = CallingConvention.Cdecl, SetLastError = false)]
-		private static extern IntPtr memcpy(IntPtr dest, IntPtr src, uint count);
-
-		private void CopyPart(Bitmap dest, DataBox src, int srcPositionX, int srcPositionY)
+		private static void CopyPart(Bitmap dest, DataBox src, int srcPositionX, int srcPositionY)
 		{
 			int width = dest.Width;
 			int height = dest.Height;
 			BitmapData destData = dest.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.WriteOnly, PixelFormat.Format32bppRgb);
 
 			const int bytesPerPixel = 4;
-			var rowBytes = (uint)(width * bytesPerPixel);
+			var rowBytes = width * bytesPerPixel;
 
 			for (var y = 0; y < height; y++)
 			{
 				IntPtr dstPtr = destData.Scan0 + (destData.Stride * y);
 				IntPtr srcPtr = src.DataPointer + (src.RowPitch * (y + srcPositionY) + (srcPositionX * bytesPerPixel));
-				memcpy(dstPtr, srcPtr, rowBytes);
+
+				Utilities.CopyMemory(dstPtr, srcPtr, rowBytes);
 			}
 
 			dest.UnlockBits(destData);
@@ -139,12 +184,12 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 			return toReturn;
 		}
 
-		private bool CaptureFrame(Capture capture, out OutputDuplicateFrameInformation frameInformation)
+		private bool WaitForFrame(Capture capture, int timeoutMilliseconds, out OutputDuplicateFrameInformation frameInformation)
 		{
 			try
 			{
 				Resource desktopResource;
-				capture.OutputDuplication.AcquireNextFrame(FrameTimeout, out frameInformation, out desktopResource);
+				capture.OutputDuplication.AcquireNextFrame(timeoutMilliseconds, out frameInformation, out desktopResource);
 
 				using (var tempTexture = desktopResource.QueryInterface<Texture2D>())
 				{
@@ -162,6 +207,10 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 					return false;
 				}
 
+				if (ex.ResultCode.Code == ResultCode.AccessLost.Code)
+				{
+					throw new ScreenNotFoundException(capture.ScreenName);
+				}
 				throw;
 			}
 
@@ -180,8 +229,9 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 
 		private class Capture : IDisposable
 		{
-			public Capture(string deviceName)
+			public Capture(string screenName)
 			{
+				ScreenName = screenName;
 				var factory = new Factory1();
 
 				Adapter[] adapters = factory.Adapters;
@@ -192,7 +242,7 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 					{
 						OutputDescription outputDescription = output.Description;
 
-						if (!outputDescription.IsAttachedToDesktop || outputDescription.DeviceName.Trim('\0') != deviceName) 
+						if (!outputDescription.IsAttachedToDesktop || outputDescription.DeviceName.Trim('\0') != screenName) 
 							continue;
 
 						RawRectangle desktopBounds = outputDescription.DesktopBounds;
@@ -219,12 +269,17 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 						return;
 					}
 				}
+
+				throw new ScreenNotFoundException(screenName);
 			}
 
-			public RawRectangle DesktopBounds { get; private set; }
-			public Device Device { get; private set; }
-			public OutputDuplication OutputDuplication { get; private set; }
-			public Texture2D Texture { get; private set; }
+			public readonly string ScreenName;
+			public readonly RawRectangle DesktopBounds;
+			public readonly Device Device;
+			public readonly OutputDuplication OutputDuplication;
+			public readonly Texture2D Texture;
+			
+			public OutputDuplicateFrameInformation? LastFrameInfo { get; set; }
 
 			public void Dispose()
 			{

@@ -1,5 +1,6 @@
 ﻿using System.Drawing;
 using System.Threading;
+using System.Windows.Forms;
 using AmbiLightNet.PluginBase;
 
 namespace AmbientLightNet.DebugOutputPlugin
@@ -21,6 +22,19 @@ namespace AmbientLightNet.DebugOutputPlugin
 		public override void Output(Color color)
 		{
 			_form.SetColor(color);
+		}
+
+		public override void Dispose()
+		{
+			_form.Invoke((MethodInvoker) delegate
+			{
+				_form.Close();
+				_form.Dispose();
+			});
+			
+			_thread.Abort();
+			
+			base.Dispose();
 		}
 	}
 }
