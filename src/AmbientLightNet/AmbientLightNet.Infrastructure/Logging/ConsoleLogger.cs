@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 
 namespace AmbientLightNet.Infrastructure.Logging
 {
@@ -6,7 +7,7 @@ namespace AmbientLightNet.Infrastructure.Logging
 	{
 		public override void Log(LogLevel logLevel, string message)
 		{
-			Console.WriteLine("[{0}] {1}", logLevel.ToString().ToUpperInvariant(), message);
+			Console.WriteLine("{0} - [{1}] {2}", DateTime.Now.ToString("s", CultureInfo.InvariantCulture), logLevel.ToString().ToUpperInvariant(), message);
 		}
 	}
 }

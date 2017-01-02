@@ -73,7 +73,6 @@
     <Compile Include="Logging\ILogger.cs" />
     <Compile Include="Logging\LoggerBase.cs" />
     <Compile Include="Logging\LogLevel.cs" />
-    <Compile Include="Logging\StaticLogger.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="AmbiLightConfig\ScreenRegionOutput.cs" />
     <Compile Include="ScreenCapture\ScreenCaptureServiceProvider.cs" />

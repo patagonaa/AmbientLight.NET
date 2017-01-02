@@ -4,7 +4,6 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 using AmbientLightNet.ScreenCapture.Infrastructure;
 using SharpDX;
 using SharpDX.Direct3D11;
@@ -25,12 +24,13 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 
 		public DesktopDuplicationScreenCaptureService(bool useCache)
 		{
-			_bitmapProvider = useCache
-				? (IScreenRegionBitmapProvider) new CachedScreenRegionBitmapProvider()
-				: (IScreenRegionBitmapProvider) new NonCachedScreenRegionBitmapProvider();
+			if (useCache)
+				_bitmapProvider = new CachedScreenRegionBitmapProvider();
+			else
+				_bitmapProvider = new NonCachedScreenRegionBitmapProvider();
 		}
 
-		public IList<Bitmap> CaptureScreenRegions(IList<ScreenRegion> regions)
+		public IList<Bitmap> CaptureScreenRegions(IList<ScreenRegion> regions, bool mayBlockIfNoChanges)
 		{
 			var regionBitmapsDictionary = new Dictionary<ScreenRegion, Bitmap>();
 
@@ -39,25 +39,20 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 			if (regionsByScreen.Count == 0)
 				return new List<Bitmap>();
 
-			if (regionsByScreen.Count == 1)
+			int timeoutMilliseconds;
+
+			if (regionsByScreen.Count == 1 && mayBlockIfNoChanges)
 			{
-				//if only one screen is captured, wait one second or until something changes.
-				var timeoutMilliseconds = 1000;
-
-				var screenName = regionsByScreen[0].Key;
-				Capture capture;
-				if (!_capturesByScreen.TryGetValue(screenName, out capture))
-					_capturesByScreen[screenName] = capture = new Capture(screenName);
-
-				CaptureFrameIfAvailable(capture, timeoutMilliseconds);
+				timeoutMilliseconds = int.MaxValue; // we could actually use windows.h's "INFINITE" constant but SharpDX's OutputDuplication.AcquireNextFrame doesn't take a UINT
 			}
 			else
 			{
-				//if there are multiple screens we can't wait until theres a change on every screen, so we only wait 10 milliseconds
-				var timeoutMilliseconds = 10;
-
-				//also we wait in parallel
-				Parallel.ForEach(regionsByScreen, grouping =>
+				timeoutMilliseconds = 30/regionsByScreen.Count;
+			}
+			
+			do
+			{
+				foreach (IGrouping<string, ScreenRegion> grouping in regionsByScreen)
 				{
 					Capture capture;
 					string screenName = grouping.Key;
@@ -65,8 +60,8 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 						_capturesByScreen[screenName] = capture = new Capture(screenName);
 
 					CaptureFrameIfAvailable(capture, timeoutMilliseconds);
-				});
-			}
+				}
+			} while (mayBlockIfNoChanges && regionsByScreen.All(x => _capturesByScreen[x.Key].LastFrameInfo == null));
 
 			foreach (IGrouping<string, ScreenRegion> grouping in regionsByScreen)
 			{
@@ -141,7 +136,7 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 			try
 			{
 				Resource desktopResource;
-
+				
 				capture.OutputDuplication.AcquireNextFrame(timeoutMilliseconds, out frameInformation, out desktopResource);
 				frameAvailable = true;
 

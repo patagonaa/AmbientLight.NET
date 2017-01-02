@@ -53,8 +53,8 @@ namespace AmbientLightNet.Configurator
 
 			string screenName = _selectedScreen.DeviceName;
 
-			var region = new ScreenRegion { ScreenName = screenName, Rectangle = new RectangleF(0, 0, 1, 1) };
-			Bitmap imageToShow = _captureService.CaptureScreenRegions(new List<ScreenRegion> {region})[0];
+			var region = new ScreenRegion(screenName, new RectangleF(0, 0, 1, 1));
+			Bitmap imageToShow = _captureService.CaptureScreenRegions(new List<ScreenRegion> {region}, false)[0];
 
 			if (imageToShow == null)
 			{
@@ -71,10 +71,14 @@ namespace AmbientLightNet.Configurator
 
 			e.Graphics.DrawImage(imageToShow, 0, 0, e.ClipRectangle.Width, e.ClipRectangle.Height);
 
+			var selectedRegionOutput = screenRegionsList.SelectedItem as ScreenRegionOutput;
+
 			foreach (ScreenRegionOutput screenRegionOutput in screenRegionsList.Items.Cast<ScreenRegionOutput>().Where(x => x.ScreenRegion.ScreenName == screenName))
 			{
+				var isSelected = selectedRegionOutput == screenRegionOutput;
+				
 				RectangleF screenRegionRect = screenRegionOutput.ScreenRegion.Rectangle;
-				e.Graphics.DrawRectangle(Pens.Red,
+				e.Graphics.DrawRectangle(isSelected ? Pens.Lime : Pens.Red,
 					screenRegionRect.X*e.ClipRectangle.Width,
 					screenRegionRect.Y*e.ClipRectangle.Height,
 					screenRegionRect.Width*e.ClipRectangle.Width,
@@ -183,38 +187,28 @@ namespace AmbientLightNet.Configurator
 			float posX = (float) mouseArgs.X/screenPreview.Width;
 			float posY = (float) mouseArgs.Y/screenPreview.Height;
 
-			switch (_screenClickMode)
+			var region = screenRegionsList.SelectedItem as ScreenRegionOutput;
+
+			if (region != null)
 			{
-				case ScreenClickMode.None:
-					return;
-				case ScreenClickMode.SetTopLeft:
-					var region = screenRegionsList.SelectedItem as ScreenRegionOutput;
+				RectangleF rect = region.ScreenRegion.Rectangle;
 
-					if (region == null)
+				switch (_screenClickMode)
+				{
+					case ScreenClickMode.None:
+						return;
+					case ScreenClickMode.SetTopLeft:
+						SetRegion(ref rect, new PointF(posX, posY), null);
 						break;
-
-					region.ScreenRegion.ScreenName = _selectedScreen.DeviceName;
-
-					RectangleF rect = region.ScreenRegion.Rectangle;
-					SetRegion(ref rect, new PointF(posX, posY), null);
-					region.ScreenRegion.Rectangle = rect;
-					break;
-				case ScreenClickMode.SetBottomRight:
-					var region2 = screenRegionsList.SelectedItem as ScreenRegionOutput;
-
-					if (region2 == null)
+					case ScreenClickMode.SetBottomRight:
+						SetRegion(ref rect, null, new PointF(posX, posY));
 						break;
-
-					region2.ScreenRegion.ScreenName = _selectedScreen.DeviceName;
-
-					RectangleF rect2 = region2.ScreenRegion.Rectangle;
-					SetRegion(ref rect2, null, new PointF(posX, posY));
-					region2.ScreenRegion.Rectangle = rect2;
-
-					break;
-				default:
-					throw new ArgumentOutOfRangeException();
+					default:
+						throw new ArgumentOutOfRangeException();
+				}
+				region.ScreenRegion = new ScreenRegion(_selectedScreen.DeviceName, rect);
 			}
+			
 			UpdateSelectedItem(screenRegionsList);
 			SetScreenClickMode(ScreenClickMode.None);
 		}
@@ -275,11 +269,7 @@ namespace AmbientLightNet.Configurator
 		{
 			screenRegionsList.Items.Add(new ScreenRegionOutput
 			{
-				ScreenRegion = new ScreenRegion
-				{
-					Rectangle = new RectangleF(0, 0, 0, 0),
-					ScreenName = _selectedScreen.DeviceName
-				},
+				ScreenRegion = new ScreenRegion(_selectedScreen.DeviceName, new RectangleF(0, 0, 0, 0)),
 				Outputs = null
 			});
 

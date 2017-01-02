@@ -15,9 +15,10 @@ namespace AmbientLightNet.GdiScreenCapture
 
 		public GdiScreenCaptureService(bool useCache)
 		{
-			_bitmapProvider = useCache
-				? (IScreenRegionBitmapProvider) new CachedScreenRegionBitmapProvider()
-				: (IScreenRegionBitmapProvider) new NonCachedScreenRegionBitmapProvider();
+			if (useCache)
+				_bitmapProvider = new CachedScreenRegionBitmapProvider();
+			else
+				_bitmapProvider = new NonCachedScreenRegionBitmapProvider();
 
 			_blackBitmap = new Bitmap(1, 1);
 			using (Graphics graphics = Graphics.FromImage(_blackBitmap))
@@ -26,7 +27,7 @@ namespace AmbientLightNet.GdiScreenCapture
 			}
 		}
 		
-		public IList<Bitmap> CaptureScreenRegions(IList<ScreenRegion> regions)
+		public IList<Bitmap> CaptureScreenRegions(IList<ScreenRegion> regions, bool mayBlockIfNoChanges)
 		{
 			Screen[] allScreens = Screen.AllScreens;
 			var bitmaps = new List<Bitmap>();

@@ -4,8 +4,14 @@ namespace AmbientLightNet.ScreenCapture.Infrastructure
 {
 	public class ScreenRegion
 	{
-		public string ScreenName { get; set; }
-		public RectangleF Rectangle { get; set; }
+		public ScreenRegion(string screenName, RectangleF rectangle)
+		{
+			ScreenName = screenName;
+			Rectangle = rectangle;
+		}
+
+		public string ScreenName { get; private set; }
+		public RectangleF Rectangle { get; private set; }
 
 		public override string ToString()
 		{
