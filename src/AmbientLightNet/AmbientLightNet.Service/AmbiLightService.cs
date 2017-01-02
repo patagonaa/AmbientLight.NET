@@ -108,7 +108,7 @@ namespace AmbientLightNet.Service
 			_running = true;
 			
 			const int maxFps = 60;
-			const int resendMilliseconds = 500;
+			const int resendMilliseconds = 100;
 
 			const int minMillis = 1000 / maxFps;
 
@@ -121,43 +121,12 @@ namespace AmbientLightNet.Service
 					Task<IList<Bitmap>> captureTask = Task.Run(() => _screenCaptureService.CaptureScreenRegions(_screenRegions, true));
 					//Task<IList<Bitmap>> captureTask = Task.FromResult(_screenCaptureService.CaptureScreenRegions(_screenRegions, true));
 
-					Task outputTask = captureTask.ContinueWith(bitmapTask =>
-					{
-						IList<Bitmap> bitmaps = bitmapTask.Result;
-
-						for (var i = 0; i < _regionConfigurations.Count; i++)
-						{
-							RegionConfiguration regionConfig = _regionConfigurations[i];
-
-							Bitmap bitmap = bitmaps[i];
-
-							Color colorToSet = bitmap == null
-								? regionConfig.LastColor
-								: regionConfig.ColorAveragingService.GetAverageColor(bitmap);
-
-							if (regionConfig.LastColor != colorToSet)
-							{
-								_logger.Log(LogLevel.Info, "[{0}] Color changed. outputting!", regionConfig.Id);
-
-								regionConfig.LastColor = colorToSet;
-								regionConfig.LastColorSetTime = DateTime.UtcNow;
-								OutputColor(regionConfig.OutputConfigs, colorToSet);
-							}
-						}
-
-						DateTime endDt = DateTime.UtcNow;
-
-						var timeSpan = (int) (endDt - startDt).TotalMilliseconds;
-
-						if (timeSpan < minMillis)
-						{
-							int waitTime = minMillis - timeSpan;
-							Thread.Sleep(waitTime);
-						}
-					});
+					Task outputTask = captureTask.ContinueWith(HandleBitmaps);
 
 					while (outputTask.Status != TaskStatus.RanToCompletion)
 					{
+						Thread.Sleep(50);
+
 						var utcNow = DateTime.UtcNow;
 
 						foreach (var regionConfig in _regionConfigurations)
@@ -169,14 +138,47 @@ namespace AmbientLightNet.Service
 								OutputColor(regionConfig.OutputConfigs, regionConfig.LastColor);
 							}
 						}
+					}
 
-						Thread.Sleep(50);
+					DateTime endDt = DateTime.UtcNow;
+
+					var timeSpan = (int)(endDt - startDt).TotalMilliseconds;
+
+					if (timeSpan < minMillis)
+					{
+						int waitTime = minMillis - timeSpan;
+						Thread.Sleep(waitTime);
 					}
 				}
 			}
 		}
 
-		private async void OutputColor(IEnumerable<OutputConfiguration> outputConfigs, Color averageColor)
+		private void HandleBitmaps(Task<IList<Bitmap>> bitmapTask)
+		{
+			IList<Bitmap> bitmaps = bitmapTask.Result;
+
+			for (var i = 0; i < _regionConfigurations.Count; i++)
+			{
+				RegionConfiguration regionConfig = _regionConfigurations[i];
+
+				Bitmap bitmap = bitmaps[i];
+
+				Color colorToSet = bitmap == null
+					? regionConfig.LastColor
+					: regionConfig.ColorAveragingService.GetAverageColor(bitmap);
+
+				if (regionConfig.LastColor != colorToSet)
+				{
+					_logger.Log(LogLevel.Info, "[{0}] Color changed. outputting!", regionConfig.Id);
+
+					regionConfig.LastColor = colorToSet;
+					regionConfig.LastColorSetTime = DateTime.UtcNow;
+					OutputColor(regionConfig.OutputConfigs, colorToSet);
+				}
+			}
+		}
+
+		private void OutputColor(IEnumerable<OutputConfiguration> outputConfigs, Color averageColor)
 		{
 			var outputTasks = new List<Task>();
 
@@ -201,7 +203,7 @@ namespace AmbientLightNet.Service
 				}));
 			}
 
-			await Task.WhenAll(outputTasks.ToArray());
+			Task.WhenAll(outputTasks.ToArray()).Wait();
 		}
 
 		public void ReloadConfig()

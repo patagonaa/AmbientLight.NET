@@ -14,6 +14,8 @@ namespace AmbientLightNet.Service
 			if (args.Length < 1 || !File.Exists(args[0]))
 			{
 				logger.Log(LogLevel.Fatal, "Config Parameter with existing config expected!");
+				logger.Log(LogLevel.Fatal, "e.g. \"AmbientLightNet.Service.exe config.json\"");
+				Console.ReadKey(true);
 				return;
 			}
 

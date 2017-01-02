@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Runtime.InteropServices;
 
 namespace AmbientLightNet.Infrastructure.ColorAveraging
 {
@@ -10,7 +10,6 @@ namespace AmbientLightNet.Infrastructure.ColorAveraging
 	{
 		private readonly int _skipColumns;
 		private readonly int _skipRows;
-		private byte[] _data;
 
 		public GdiFastPixelAveraging(IDictionary<string, object> config)
 			: this(
@@ -46,41 +45,34 @@ namespace AmbientLightNet.Infrastructure.ColorAveraging
 					throw new ArgumentOutOfRangeException();
 			}
 
-			BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, bitmapWidth, bitmapHeight), ImageLockMode.ReadOnly, pixelFormat);
-
-			int dataLength = bitmapData.Stride*bitmapData.Height;
-
 			var i = 0;
 			long rValues = 0;
 			long gValues = 0;
 			long bValues = 0;
+			
+			BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, bitmapWidth, bitmapHeight), ImageLockMode.ReadOnly, pixelFormat);
 
-			if (_data == null || _data.Length < dataLength)
+			int stride = bitmapData.Stride;
+			unsafe
 			{
-				_data = new byte[dataLength];
-			}
+				var data = (byte*) bitmapData.Scan0;
 
-			lock (_data)
-			{
-				Marshal.Copy(bitmapData.Scan0, _data, 0, dataLength);
-				int stride = bitmapData.Stride;
-				bitmap.UnlockBits(bitmapData);
-
-				for (var column = 0; column < bitmapHeight; column += 1 + _skipColumns)
+				for (var y = 0; y < bitmapHeight; y += 1 + _skipColumns)
 				{
-					int columnPos = column*stride;
-					for (var row = 0; row < bitmapWidth; row += 1 + _skipRows)
+					int lineIndex = y*stride;
+					for (var x = 0; x < bitmapWidth; x += 1 + _skipRows)
 					{
-						int rowPos = columnPos + row*bytesPerPixel;
-						// var a = _data[rowPos + 3];
-						rValues += _data[rowPos + 2];
-						gValues += _data[rowPos + 1];
-						bValues += _data[rowPos];
+						int pixelIndex = lineIndex + x*bytesPerPixel;
+						rValues += data[pixelIndex + 2];
+						gValues += data[pixelIndex + 1];
+						bValues += data[pixelIndex];
 
 						i++;
 					}
 				}
 			}
+
+			bitmap.UnlockBits(bitmapData);
 
 			return Color.FromArgb(255, (byte) (rValues/i), (byte) (gValues/i), (byte) (bValues/i));
 		}
