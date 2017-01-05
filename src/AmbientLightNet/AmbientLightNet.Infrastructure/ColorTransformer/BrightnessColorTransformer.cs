@@ -1,24 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Drawing;
+using System.Globalization;
+using AmbiLightNet.PluginBase;
 
 namespace AmbientLightNet.Infrastructure.ColorTransformer
 {
 	public class BrightnessColorTransformer : IColorTransformer
 	{
-		private readonly double _factorR;
-		private readonly double _factorG;
-		private readonly double _factorB;
+		private readonly float _factorR;
+		private readonly float _factorG;
+		private readonly float _factorB;
 
 		public BrightnessColorTransformer(IDictionary<string, object> config)
 			: this(
-				Convert.ToDouble(config["factorR"]),
-				Convert.ToDouble(config["factorG"]),
-				Convert.ToDouble(config["factorB"]))
+				Convert.ToSingle(config["factorR"], CultureInfo.InvariantCulture),
+				Convert.ToSingle(config["factorG"], CultureInfo.InvariantCulture),
+				Convert.ToSingle(config["factorB"], CultureInfo.InvariantCulture))
 		{
 		}
 
-		public BrightnessColorTransformer(double factorR, double factorG, double factorB)
+		public BrightnessColorTransformer(float factorR, float factorG, float factorB)
 		{
 			if(factorR < 0 || factorR > 1)
 				throw new ArgumentException("factor must be between 0 and 1", "factorR");
@@ -32,9 +33,11 @@ namespace AmbientLightNet.Infrastructure.ColorTransformer
 			_factorB = factorB;
 		}
 
-		public Color Transform(Color color)
+		public bool NeedsPreviousInputColors { get { return false; } }
+
+		public ColorF Transform(ColorTransformerContext context, ColorF color)
 		{
-			return Color.FromArgb((int) (color.R*_factorR), (int) (color.G*_factorG), (int) (color.B*_factorB));
+			return ColorF.FromRgb(color.R*_factorR, color.G*_factorG, color.B*_factorB);
 		}
 	}
 }

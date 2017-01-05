@@ -19,9 +19,14 @@ namespace AmbientLightNet.DebugOutputPlugin
 			_thread.Start();
 		}
 
-		public override void Output(Color color)
+		public override void Output(ColorF color)
 		{
-			_form.SetColor(color);
+			_form.SetColor((Color) color);
+		}
+
+		public override bool ColorsEqual(ColorF first, ColorF second)
+		{
+			return ((Color)first) == ((Color)second);
 		}
 
 		public override void Dispose()

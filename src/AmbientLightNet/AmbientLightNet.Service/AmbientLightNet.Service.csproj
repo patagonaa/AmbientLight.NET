@@ -71,7 +71,6 @@
   <ItemGroup>
     <Compile Include="AmbiLightService.cs" />
     <Compile Include="ColorAveragingServiceProvider.cs" />
-    <Compile Include="ColorTransformerProvider.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

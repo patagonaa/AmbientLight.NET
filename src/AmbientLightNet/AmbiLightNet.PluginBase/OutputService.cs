@@ -1,5 +1,4 @@
 using System;
-using System.Drawing;
 
 namespace AmbiLightNet.PluginBase
 {
@@ -7,7 +6,9 @@ namespace AmbiLightNet.PluginBase
 	{
 		public abstract void Initialize(IOutputInfo outputInfo);
 
-		public abstract void Output(Color color);
+		public abstract void Output(ColorF color);
+
+		public abstract bool ColorsEqual(ColorF first, ColorF second);
 
 		public virtual void Dispose()
 		{

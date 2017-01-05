@@ -1,9 +1,10 @@
-﻿using System.Drawing;
+﻿using AmbiLightNet.PluginBase;
 
 namespace AmbientLightNet.Infrastructure.ColorTransformer
 {
 	public interface IColorTransformer
 	{
-		Color Transform(Color color);
+		bool NeedsPreviousInputColors { get; }
+		ColorF Transform(ColorTransformerContext context, ColorF color);
 	}
 }

@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
+using AmbiLightNet.PluginBase;
 
 namespace AmbientLightNet.Infrastructure.ColorAveraging
 {
@@ -24,7 +24,7 @@ namespace AmbientLightNet.Infrastructure.ColorAveraging
 			_skipRows = skipRows;
 		}
 
-		public Color GetAverageColor(Bitmap bitmap)
+		public ColorF GetAverageColor(Bitmap bitmap)
 		{
 			int bitmapWidth = bitmap.Width;
 			int bitmapHeight = bitmap.Height;
@@ -46,9 +46,9 @@ namespace AmbientLightNet.Infrastructure.ColorAveraging
 			}
 
 			var i = 0;
-			long rValues = 0;
-			long gValues = 0;
-			long bValues = 0;
+			ulong rValues = 0;
+			ulong gValues = 0;
+			ulong bValues = 0;
 			
 			BitmapData bitmapData = bitmap.LockBits(new Rectangle(0, 0, bitmapWidth, bitmapHeight), ImageLockMode.ReadOnly, pixelFormat);
 
@@ -74,7 +74,7 @@ namespace AmbientLightNet.Infrastructure.ColorAveraging
 
 			bitmap.UnlockBits(bitmapData);
 
-			return Color.FromArgb(255, (byte) (rValues/i), (byte) (gValues/i), (byte) (bValues/i));
+			return ColorF.FromRgb(((float) rValues/i)/255f, ((float) gValues/i)/255f, ((float) bValues/i)/255f);
 		}
 
 		public void Dispose()

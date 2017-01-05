@@ -70,8 +70,12 @@
     <Compile Include="ColorAveraging\IColorAveragingService.cs" />
     <Compile Include="AmbiLightConfig\ColorTransformerConfig.cs" />
     <Compile Include="ColorTransformer\BrightnessColorTransformer.cs" />
+    <Compile Include="ColorTransformer\ColorTransformerContext.cs" />
+    <Compile Include="ColorTransformer\ColorTransformerService.cs" />
     <Compile Include="ColorTransformer\GammaColorTransformer.cs" />
+    <Compile Include="ColorTransformer\HysteresisColorTransformer.cs" />
     <Compile Include="ColorTransformer\IColorTransformer.cs" />
+    <Compile Include="ColorTransformer\ThresholdColorTransformer.cs" />
     <Compile Include="Plugins.cs" />
     <Compile Include="Logging\ConsoleLogger.cs" />
     <Compile Include="Logging\ILogger.cs" />

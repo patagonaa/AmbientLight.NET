@@ -36,12 +36,17 @@ namespace AmbientLightNet.MagicHomePlugin
 
 			_device = new Device(new IPEndPoint(ip, port), outputType.DeviceType);
 			_device.TurnOn();
-			Output(Color.Black);
+			Output((ColorF) Color.Black);
 		}
 
-		public override void Output(Color color)
+		public override void Output(ColorF color)
 		{
-			_device.SetColor(color, waitForResponse: false);
+			_device.SetColor((Color) color, waitForResponse: false);
+		}
+
+		public override bool ColorsEqual(ColorF first, ColorF second)
+		{
+			return ((Color) first) == ((Color) second);
 		}
 
 		public override void Dispose()

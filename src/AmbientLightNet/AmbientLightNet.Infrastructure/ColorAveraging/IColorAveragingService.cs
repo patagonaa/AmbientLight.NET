@@ -1,10 +1,11 @@
 ﻿using System;
 using System.Drawing;
+using AmbiLightNet.PluginBase;
 
 namespace AmbientLightNet.Infrastructure.ColorAveraging
 {
 	public interface IColorAveragingService : IDisposable
 	{
-		Color GetAverageColor(Bitmap bitmap);
+		ColorF GetAverageColor(Bitmap bitmap);
 	}
 }

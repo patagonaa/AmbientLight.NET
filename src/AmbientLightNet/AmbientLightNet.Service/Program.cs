@@ -9,7 +9,7 @@ namespace AmbientLightNet.Service
 	{
 		static void Main(string[] args)
 		{
-			ILogger logger = new ConsoleLogger();
+			ILogger logger = new ConsoleLogger(LogLevel.Debug);
 
 			if (args.Length < 1 || !File.Exists(args[0]))
 			{

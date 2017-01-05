@@ -59,6 +59,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ColorF.cs" />
     <Compile Include="IOutputInfo.cs" />
     <Compile Include="IOutputPlugin.cs" />
     <Compile Include="OutputConfigDialog.cs">

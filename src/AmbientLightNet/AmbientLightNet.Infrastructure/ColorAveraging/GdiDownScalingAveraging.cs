@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Linq;
+using AmbiLightNet.PluginBase;
 
 namespace AmbientLightNet.Infrastructure.ColorAveraging
 {
@@ -31,7 +32,7 @@ namespace AmbientLightNet.Infrastructure.ColorAveraging
 			_graphics.InterpolationMode = interpolationMode;
 		}
 
-		public Color GetAverageColor(Bitmap bitmap)
+		public ColorF GetAverageColor(Bitmap bitmap)
 		{
 			_graphics.DrawImage(bitmap, new Rectangle(0, 0, _bitmapWidth, _bitmapHeight), 0, 0, bitmap.Width, bitmap.Height, GraphicsUnit.Pixel);
 
@@ -44,11 +45,11 @@ namespace AmbientLightNet.Infrastructure.ColorAveraging
 				}
 			}
 
-			var averageR = (int) colors.Average(x => x.R);
-			var averageG = (int) colors.Average(x => x.G);
-			var averageB = (int) colors.Average(x => x.B);
+			var averageR = (float) colors.Average(x => x.R);
+			var averageG = (float) colors.Average(x => x.G);
+			var averageB = (float) colors.Average(x => x.B);
 
-			return Color.FromArgb(255, averageR, averageG, averageB);
+			return ColorF.FromRgb(averageR/255f, averageG/255f, averageB/255f);
 		}
 
 		public void Dispose()

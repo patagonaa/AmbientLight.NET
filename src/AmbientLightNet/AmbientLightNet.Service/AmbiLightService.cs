@@ -27,7 +27,7 @@ namespace AmbientLightNet.Service
 		private readonly object _configLock = new object();
 		private IList<RegionConfiguration> _regionConfigurations;
 		private readonly ColorAveragingServiceProvider _colorAveragingServiceProvider;
-		private readonly ColorTransformerProvider _colorTransformerProvider;
+		private readonly ColorTransformerService _colorTransformerService;
 		private IList<ScreenRegion> _screenRegions; //needed as reference for caching
 		private readonly ScreenCaptureServiceProvider _screenCaptureServiceProvider;
 
@@ -38,7 +38,7 @@ namespace AmbientLightNet.Service
 
 			_screenCaptureServiceProvider = new ScreenCaptureServiceProvider();
 			_colorAveragingServiceProvider = new ColorAveragingServiceProvider();
-			_colorTransformerProvider = new ColorTransformerProvider();
+			_colorTransformerService = new ColorTransformerService();
 
 			AmbiLightConfig config = ReadConfig(_configPath);
 
@@ -78,7 +78,9 @@ namespace AmbientLightNet.Service
 					OutputConfigs = new List<OutputConfiguration>()
 				};
 
-				foreach (var output in region.Outputs)
+				var outputId = 0;
+
+				foreach (Output output in region.Outputs)
 				{
 					IOutputInfo outputInfo = output.OutputInfo;
 					IOutputPlugin plugin = plugins.FirstOrDefault(y => y.Name == outputInfo.PluginName);
@@ -88,9 +90,54 @@ namespace AmbientLightNet.Service
 					OutputService outputService = plugin.GetNewOutputService();
 					outputService.Initialize(outputInfo);
 
-					var outputConfig = new OutputConfiguration
+					IList<ColorTransformerConfig> colorTransformerConfigs = output.ColorTransformerConfigs;
+
+					if (colorTransformerConfigs == null)
 					{
-						ColorTransformers = _colorTransformerProvider.Provide(output.ColorTransformerConfigs),
+						colorTransformerConfigs = new List<ColorTransformerConfig>
+						{
+							new ColorTransformerConfig
+							{
+								Type = typeof (HysteresisColorTransformer),
+								Config = new Dictionary<string, object>
+								{
+									{"hysteresis", "0.01"}
+								}
+							},
+							new ColorTransformerConfig
+							{
+								Type = typeof (BrightnessColorTransformer),
+								Config = new Dictionary<string, object>
+								{
+									{"factorR", "1"},
+									{"factorG", "0.9"},
+									{"factorB", "0.4"}
+								}
+							},
+							new ColorTransformerConfig
+							{
+								Type = typeof (GammaColorTransformer),
+								Config = new Dictionary<string, object>
+								{
+									{"gammaR", "1"},
+									{"gammaG", "1.2"},
+									{"gammaB", "1.2"}
+								}
+							},
+							new ColorTransformerConfig
+							{
+								Type = typeof (ThresholdColorTransformer),
+								Config = new Dictionary<string, object>
+								{
+									{"threshold", "0.02"}
+								}
+							}
+						};
+					}
+
+					var outputConfig = new OutputConfiguration(regionConfig.Id, outputId++)
+					{
+						ColorTransformerContexts = colorTransformerConfigs.Select(x => new ColorTransformerContext(x)).ToList(),
 						OutputService = outputService
 					};
 
@@ -133,7 +180,7 @@ namespace AmbientLightNet.Service
 						{
 							if (regionConfig.LastColorSetTime + TimeSpan.FromMilliseconds(resendMilliseconds) < utcNow)
 							{
-								_logger.Log(LogLevel.Info, "[{0}] Resend Timeout elapsed. outputting!", regionConfig.Id);
+								_logger.Log(LogLevel.Debug, "[Region {0}] Resend timeout elapsed.", regionConfig.Id);
 								regionConfig.LastColorSetTime = utcNow;
 								OutputColor(regionConfig.OutputConfigs, regionConfig.LastColor);
 							}
@@ -163,22 +210,19 @@ namespace AmbientLightNet.Service
 
 				Bitmap bitmap = bitmaps[i];
 
-				Color colorToSet = bitmap == null
+				ColorF colorToSet = bitmap == null
 					? regionConfig.LastColor
 					: regionConfig.ColorAveragingService.GetAverageColor(bitmap);
 
-				if (regionConfig.LastColor != colorToSet)
-				{
-					_logger.Log(LogLevel.Info, "[{0}] Color changed. outputting!", regionConfig.Id);
+				regionConfig.LastColor = colorToSet;
+				regionConfig.LastColorSetTime = DateTime.UtcNow;
 
-					regionConfig.LastColor = colorToSet;
-					regionConfig.LastColorSetTime = DateTime.UtcNow;
-					OutputColor(regionConfig.OutputConfigs, colorToSet);
-				}
+				_logger.Log(LogLevel.Debug, "[Region {0}] New frame available.", regionConfig.Id);
+				OutputColor(regionConfig.OutputConfigs, colorToSet);
 			}
 		}
 
-		private void OutputColor(IEnumerable<OutputConfiguration> outputConfigs, Color averageColor)
+		private void OutputColor(IEnumerable<OutputConfiguration> outputConfigs, ColorF colorToSet)
 		{
 			var outputTasks = new List<Task>();
 
@@ -186,21 +230,27 @@ namespace AmbientLightNet.Service
 			{
 				OutputService outputService = outputConfig.OutputService;
 
-				IList<IColorTransformer> colorTransformers = outputConfig.ColorTransformers;
+				IList<ColorTransformerContext> colorTransformerContexts = outputConfig.ColorTransformerContexts;
 
-				Color outputColor = colorTransformers.Aggregate(averageColor, (color, transformer) => transformer.Transform(color));
+				var outputColor = _colorTransformerService.Transform(colorTransformerContexts, colorToSet);
 
-				outputTasks.Add(Task.Run(() =>
+				if (!outputService.ColorsEqual(outputColor, outputConfig.LastColor))
 				{
-					try
+					_logger.Log(LogLevel.Debug, "[Region {0} Output {1}] Color changed. Outputting!", outputConfig.RegionId, outputConfig.OutputId);
+
+					outputTasks.Add(Task.Run(() =>
 					{
-						outputService.Output(outputColor);
-					}
-					catch (Exception ex)
-					{
-						_logger.Log(LogLevel.Error, "Output Color Failed: " + ex.ToString());
-					}
-				}));
+						try
+						{
+							outputService.Output(outputColor);
+						}
+						catch (Exception ex)
+						{
+							_logger.Log(LogLevel.Error, "[Region {0} Output {1}] Output Color Failed: {2}", outputConfig.RegionId, outputConfig.OutputId, ex.ToString());
+						}
+					}));
+					outputConfig.LastColor = outputColor;
+				}
 			}
 
 			Task.WhenAll(outputTasks.ToArray()).Wait();
@@ -241,13 +291,13 @@ namespace AmbientLightNet.Service
 			public RegionConfiguration(int id)
 			{
 				Id = id;
-				LastColor = Color.Black;
+				LastColor = (ColorF) Color.Black;
 			}
 
 			public int Id { get; private set; }
 			public ScreenRegion ScreenRegion { get; set; }
 			public IColorAveragingService ColorAveragingService { get; set; }
-			public Color LastColor { get; set; }
+			public ColorF LastColor { get; set; }
 			public DateTime LastColorSetTime { get; set; }
 			public IList<OutputConfiguration> OutputConfigs { get; set; }
 
@@ -263,8 +313,19 @@ namespace AmbientLightNet.Service
 
 		private class OutputConfiguration : IDisposable
 		{
-			public IList<IColorTransformer> ColorTransformers { get; set; }
+			public OutputConfiguration(int regionId, int outputId)
+			{
+				RegionId = regionId;
+				OutputId = outputId;
+				LastColor = (ColorF) Color.Black;
+			}
+
+			public int RegionId { get; private set; }
+			public int OutputId { get; private set; }
 			public OutputService OutputService { get; set; }
+			public IList<ColorTransformerContext> ColorTransformerContexts { get; set; }
+			public ColorF LastColor { get; set; }
+
 			public void Dispose()
 			{
 				OutputService.Dispose();
