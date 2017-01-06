@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
 using System.Threading;
 using System.Windows.Forms;
 using AmbiLightNet.PluginBase;
@@ -7,6 +8,10 @@ namespace AmbientLightNet.DebugOutputPlugin
 {
 	public class DebugOutputService : OutputService
 	{
+		public DebugOutputService() : base(null)
+		{
+		}
+
 		private DebugOutputForm _form;
 		private Thread _thread;
 

@@ -9,6 +9,12 @@ namespace AmbientLightNet.MagicHomePlugin
 {
 	public class MagicHomeOutputService : OutputService<MagicHomeLedOutput>
 	{
+		public MagicHomeOutputService() 
+			: base(TimeSpan.FromMilliseconds(100))
+		{
+			
+		}
+
 		private Device _device;
 
 		public override void Initialize(MagicHomeLedOutput outputType)

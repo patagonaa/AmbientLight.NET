@@ -47,7 +47,7 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 			}
 			else
 			{
-				timeoutMilliseconds = 30/regionsByScreen.Count;
+				timeoutMilliseconds = 0; // do not wait for frame, use latest frame if one is available
 			}
 			
 			do

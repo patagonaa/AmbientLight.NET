@@ -138,7 +138,8 @@ namespace AmbientLightNet.Service
 					var outputConfig = new OutputConfiguration(regionConfig.Id, outputId++)
 					{
 						ColorTransformerContexts = colorTransformerConfigs.Select(x => new ColorTransformerContext(x)).ToList(),
-						OutputService = outputService
+						OutputService = outputService,
+						ResendInterval = outputService.DefaultResendInterval
 					};
 
 					regionConfig.OutputConfigs.Add(outputConfig);
@@ -168,23 +169,31 @@ namespace AmbientLightNet.Service
 					Task<IList<Bitmap>> captureTask = Task.Run(() => _screenCaptureService.CaptureScreenRegions(_screenRegions, true));
 					//Task<IList<Bitmap>> captureTask = Task.FromResult(_screenCaptureService.CaptureScreenRegions(_screenRegions, true));
 
-					Task outputTask = captureTask.ContinueWith(HandleBitmaps);
+					Task outputAllTask = captureTask.ContinueWith(HandleBitmaps);
 
-					while (outputTask.Status != TaskStatus.RanToCompletion)
+					while (outputAllTask.Status != TaskStatus.RanToCompletion)
 					{
-						Thread.Sleep(50);
+						Thread.Sleep(10);
 
 						var utcNow = DateTime.UtcNow;
 
-						foreach (var regionConfig in _regionConfigurations)
+						var outputTasks = new List<Task>();
+
+						foreach (RegionConfiguration regionConfig in _regionConfigurations)
 						{
-							if (regionConfig.LastColorSetTime + TimeSpan.FromMilliseconds(resendMilliseconds) < utcNow)
+							foreach (OutputConfiguration outputConfig in regionConfig.OutputConfigs)
 							{
-								_logger.Log(LogLevel.Debug, "[Region {0}] Resend timeout elapsed.", regionConfig.Id);
-								regionConfig.LastColorSetTime = utcNow;
-								OutputColor(regionConfig.OutputConfigs, regionConfig.LastColor);
+								if (outputConfig.ResendInterval != null && outputConfig.LastColorSetTime + outputConfig.ResendInterval.Value < utcNow)
+								{
+									outputConfig.LastColorSetTime = utcNow;
+									Task outputTask = OutputColor(outputConfig, regionConfig.LastColor, true);
+									_logger.Log(LogLevel.Debug, "[Region {0} Output {1}] Resend timeout elapsed.", outputConfig.RegionId, outputConfig.OutputId);
+									outputTasks.Add(outputTask);
+								}
 							}
 						}
+
+						Task.WhenAll(outputTasks).Wait();
 					}
 
 					DateTime endDt = DateTime.UtcNow;
@@ -204,6 +213,8 @@ namespace AmbientLightNet.Service
 		{
 			IList<Bitmap> bitmaps = bitmapTask.Result;
 
+			var outputTasks = new List<Task>();
+
 			for (var i = 0; i < _regionConfigurations.Count; i++)
 			{
 				RegionConfiguration regionConfig = _regionConfigurations[i];
@@ -215,45 +226,47 @@ namespace AmbientLightNet.Service
 					: regionConfig.ColorAveragingService.GetAverageColor(bitmap);
 
 				regionConfig.LastColor = colorToSet;
-				regionConfig.LastColorSetTime = DateTime.UtcNow;
-
+				
 				_logger.Log(LogLevel.Debug, "[Region {0}] New frame available.", regionConfig.Id);
-				OutputColor(regionConfig.OutputConfigs, colorToSet);
-			}
-		}
 
-		private void OutputColor(IEnumerable<OutputConfiguration> outputConfigs, ColorF colorToSet)
-		{
-			var outputTasks = new List<Task>();
-
-			foreach (OutputConfiguration outputConfig in outputConfigs)
-			{
-				OutputService outputService = outputConfig.OutputService;
-
-				IList<ColorTransformerContext> colorTransformerContexts = outputConfig.ColorTransformerContexts;
-
-				var outputColor = _colorTransformerService.Transform(colorTransformerContexts, colorToSet);
-
-				if (!outputService.ColorsEqual(outputColor, outputConfig.LastColor))
+				foreach (OutputConfiguration outputConfig in regionConfig.OutputConfigs)
 				{
-					_logger.Log(LogLevel.Debug, "[Region {0} Output {1}] Color changed. Outputting!", outputConfig.RegionId, outputConfig.OutputId);
-
-					outputTasks.Add(Task.Run(() =>
+					var outputTask = OutputColor(outputConfig, colorToSet, false);
+					if (outputTask != null)
 					{
-						try
-						{
-							outputService.Output(outputColor);
-						}
-						catch (Exception ex)
-						{
-							_logger.Log(LogLevel.Error, "[Region {0} Output {1}] Output Color Failed: {2}", outputConfig.RegionId, outputConfig.OutputId, ex.ToString());
-						}
-					}));
-					outputConfig.LastColor = outputColor;
+						_logger.Log(LogLevel.Debug, "[Region {0} Output {1}] Color changed. outputting", outputConfig.RegionId, outputConfig.OutputId);
+						outputTasks.Add(outputTask);
+					}
 				}
 			}
 
-			Task.WhenAll(outputTasks.ToArray()).Wait();
+			Task.WhenAll(outputTasks).Wait();
+		}
+
+		private Task OutputColor(OutputConfiguration outputConfig, ColorF colorToSet, bool resendSameColor)
+		{
+			OutputService outputService = outputConfig.OutputService;
+
+			IList<ColorTransformerContext> colorTransformerContexts = outputConfig.ColorTransformerContexts;
+
+			var outputColor = _colorTransformerService.Transform(colorTransformerContexts, colorToSet);
+
+			if (!resendSameColor && outputService.ColorsEqual(outputColor, outputConfig.LastColor))
+				return null;
+
+			outputConfig.LastColor = outputColor;
+			outputConfig.LastColorSetTime = DateTime.UtcNow;
+			return Task.Run(() =>
+			{
+				try
+				{
+					outputService.Output(outputColor);
+				}
+				catch (Exception ex)
+				{
+					_logger.Log(LogLevel.Error, "[Region {0} Output {1}] Output Color Failed: {2}", outputConfig.RegionId, outputConfig.OutputId, ex.ToString());
+				}
+			});
 		}
 
 		public void ReloadConfig()
@@ -297,9 +310,8 @@ namespace AmbientLightNet.Service
 			public int Id { get; private set; }
 			public ScreenRegion ScreenRegion { get; set; }
 			public IColorAveragingService ColorAveragingService { get; set; }
-			public ColorF LastColor { get; set; }
-			public DateTime LastColorSetTime { get; set; }
 			public IList<OutputConfiguration> OutputConfigs { get; set; }
+			public ColorF LastColor { get; set; }
 
 			public void Dispose()
 			{
@@ -325,6 +337,8 @@ namespace AmbientLightNet.Service
 			public OutputService OutputService { get; set; }
 			public IList<ColorTransformerContext> ColorTransformerContexts { get; set; }
 			public ColorF LastColor { get; set; }
+			public DateTime LastColorSetTime { get; set; }
+			public TimeSpan? ResendInterval { get; set; }
 
 			public void Dispose()
 			{

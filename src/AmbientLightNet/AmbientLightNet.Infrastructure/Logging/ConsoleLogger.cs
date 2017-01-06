@@ -17,7 +17,7 @@ namespace AmbientLightNet.Infrastructure.Logging
 			if(logLevel < _logLevel)
 				return;
 
-			Console.WriteLine("{0} - [{1}] {2}", DateTime.Now.ToString("s", CultureInfo.InvariantCulture), logLevel.ToString().ToUpperInvariant(), message);
+			Console.WriteLine("{0} - [{1}] {2}", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture), logLevel.ToString().ToUpperInvariant(), message);
 		}
 	}
 }
