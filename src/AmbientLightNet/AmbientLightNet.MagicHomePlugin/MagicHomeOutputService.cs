@@ -39,9 +39,11 @@ namespace AmbientLightNet.MagicHomePlugin
 			Output((ColorF) Color.Black);
 		}
 
-		public override void Output(ColorF color)
+		public override void Output(ColorF colorF)
 		{
-			_device.SetColor((Color) color, waitForResponse: false);
+			var color = (Color) colorF;
+
+			_device.SetColor(color.R, color.G, color.B, waitForResponse: false, persist: false);
 		}
 
 		public override bool ColorsEqual(ColorF first, ColorF second)
