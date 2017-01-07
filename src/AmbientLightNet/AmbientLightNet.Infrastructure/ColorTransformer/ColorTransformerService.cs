@@ -47,22 +47,28 @@ namespace AmbientLightNet.Infrastructure.ColorTransformer
 		private IColorTransformer GetTransformer(ColorTransformerContext context)
 		{
 			IColorTransformer toReturn;
-			if (!_transformers.TryGetValue(context, out toReturn))
+
+			lock (_transformers)
 			{
-				ConstructorInfo ctor = context.Type.GetConstructor(new[] { typeof(IDictionary<string, object>) });
+				if (!_transformers.TryGetValue(context, out toReturn))
+				{
+					ConstructorInfo ctor = context.Type.GetConstructor(new[] { typeof(IDictionary<string, object>) });
 
-				if (ctor == null)
-					throw new InvalidOperationException(string.Format("Color Transformer {0} is missing constructor with config", context.Type.Name));
-				
-				_transformers[context] = toReturn = (IColorTransformer)ctor.Invoke(new object[] { context.TransformerConfig });
+					if (ctor == null)
+						throw new InvalidOperationException(string.Format("Color Transformer {0} is missing constructor with config", context.Type.Name));
+
+					_transformers[context] = toReturn = (IColorTransformer)ctor.Invoke(new object[] { context.TransformerConfig });
+				}
 			}
-
 			return toReturn;
 		}
 
 		public void Dispose()
 		{
-			_transformers.Clear();
+			lock (_transformers)
+			{
+				_transformers.Clear();
+			}
 		}
 	}
 }

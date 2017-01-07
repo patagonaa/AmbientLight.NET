@@ -59,11 +59,12 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CachedScreenRegionBitmapProvider.cs" />
+    <Compile Include="CaptureResult.cs" />
+    <Compile Include="CaptureState.cs" />
     <Compile Include="IScreenRegionBitmapProvider.cs" />
     <Compile Include="IScreenCaptureService.cs" />
     <Compile Include="NonCachedScreenRegionBitmapProvider.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ScreenNotFoundException.cs" />
     <Compile Include="ScreenRegion.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

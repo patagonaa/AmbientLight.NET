@@ -156,7 +156,6 @@ namespace AmbientLightNet.Service
 			_running = true;
 			
 			const int maxFps = 60;
-			const int resendMilliseconds = 100;
 
 			const int minMillis = 1000 / maxFps;
 
@@ -166,13 +165,16 @@ namespace AmbientLightNet.Service
 				{
 					DateTime startDt = DateTime.UtcNow;
 
-					Task<IList<Bitmap>> captureTask = Task.Run(() => _screenCaptureService.CaptureScreenRegions(_screenRegions, true));
-					//Task<IList<Bitmap>> captureTask = Task.FromResult(_screenCaptureService.CaptureScreenRegions(_screenRegions, true));
+					Task<IList<CaptureResult>> captureTask = Task.Run(() => _screenCaptureService.CaptureScreenRegions(_screenRegions, true));
+					//Task<IList<CaptureResult>> captureTask = Task.FromResult(_screenCaptureService.CaptureScreenRegions(_screenRegions, true));
 
-					Task outputAllTask = captureTask.ContinueWith(HandleBitmaps);
+					Task outputAllTask = captureTask.ContinueWith(HandleCaptureResults);
 
 					while (outputAllTask.Status != TaskStatus.RanToCompletion)
 					{
+						if (outputAllTask.Exception != null)
+							throw outputAllTask.Exception;
+
 						Thread.Sleep(10);
 
 						var utcNow = DateTime.UtcNow;
@@ -209,9 +211,9 @@ namespace AmbientLightNet.Service
 			}
 		}
 
-		private void HandleBitmaps(Task<IList<Bitmap>> bitmapTask)
+		private void HandleCaptureResults(Task<IList<CaptureResult>> captureTask)
 		{
-			IList<Bitmap> bitmaps = bitmapTask.Result;
+			IList<CaptureResult> captureResults = captureTask.Result;
 
 			var outputTasks = new List<Task>();
 
@@ -219,19 +221,32 @@ namespace AmbientLightNet.Service
 			{
 				RegionConfiguration regionConfig = _regionConfigurations[i];
 
-				Bitmap bitmap = bitmaps[i];
+				CaptureResult captureResult = captureResults[i];
 
-				ColorF colorToSet = bitmap == null
-					? regionConfig.LastColor
-					: regionConfig.ColorAveragingService.GetAverageColor(bitmap);
+				ColorF colorToSet;
+
+				switch (captureResult.State)
+				{
+					case CaptureState.NoChanges:
+						colorToSet = regionConfig.LastColor;
+						break;
+					case CaptureState.NewBitmap:
+						colorToSet = regionConfig.ColorAveragingService.GetAverageColor(captureResult.Bitmap);
+						break;
+					case CaptureState.ScreenNotFound:
+						colorToSet = (ColorF) Color.Black;
+						break;
+					default:
+						throw new ArgumentOutOfRangeException();
+				}
 
 				regionConfig.LastColor = colorToSet;
-				
+
 				_logger.Log(LogLevel.Debug, "[Region {0}] New frame available.", regionConfig.Id);
 
 				foreach (OutputConfiguration outputConfig in regionConfig.OutputConfigs)
 				{
-					var outputTask = OutputColor(outputConfig, colorToSet, false);
+					Task outputTask = OutputColor(outputConfig, colorToSet, false);
 					if (outputTask != null)
 					{
 						_logger.Log(LogLevel.Debug, "[Region {0} Output {1}] Color changed. outputting", outputConfig.RegionId, outputConfig.OutputId);
@@ -251,7 +266,7 @@ namespace AmbientLightNet.Service
 
 			var outputColor = _colorTransformerService.Transform(colorTransformerContexts, colorToSet);
 
-			if (!resendSameColor && outputService.ColorsEqual(outputColor, outputConfig.LastColor))
+			if (!resendSameColor && outputConfig.LastColor.HasValue && outputService.ColorsEqual(outputColor, outputConfig.LastColor.Value))
 				return null;
 
 			outputConfig.LastColor = outputColor;
@@ -281,7 +296,7 @@ namespace AmbientLightNet.Service
 
 		private static AmbiLightConfig ReadConfig(string fileName)
 		{
-			return JsonConvert.DeserializeObject<AmbiLightConfig>(File.ReadAllText(fileName, Encoding.UTF8), new JsonSerializerSettings() { MissingMemberHandling = MissingMemberHandling.Ignore });
+			return JsonConvert.DeserializeObject<AmbiLightConfig>(File.ReadAllText(fileName, Encoding.UTF8), new JsonSerializerSettings {MissingMemberHandling = MissingMemberHandling.Ignore});
 		}
 
 		public void Stop()
@@ -329,14 +344,13 @@ namespace AmbientLightNet.Service
 			{
 				RegionId = regionId;
 				OutputId = outputId;
-				LastColor = (ColorF) Color.Black;
 			}
 
 			public int RegionId { get; private set; }
 			public int OutputId { get; private set; }
 			public OutputService OutputService { get; set; }
 			public IList<ColorTransformerContext> ColorTransformerContexts { get; set; }
-			public ColorF LastColor { get; set; }
+			public ColorF? LastColor { get; set; }
 			public DateTime LastColorSetTime { get; set; }
 			public TimeSpan? ResendInterval { get; set; }
 

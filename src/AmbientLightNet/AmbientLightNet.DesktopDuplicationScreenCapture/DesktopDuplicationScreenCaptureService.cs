@@ -30,14 +30,14 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 				_bitmapProvider = new NonCachedScreenRegionBitmapProvider();
 		}
 
-		public IList<Bitmap> CaptureScreenRegions(IList<ScreenRegion> regions, bool mayBlockIfNoChanges)
+		public IList<CaptureResult> CaptureScreenRegions(IList<ScreenRegion> regions, bool mayBlockIfNoChanges)
 		{
-			var regionBitmapsDictionary = new Dictionary<ScreenRegion, Bitmap>();
+			var regionResultDictionary = new Dictionary<ScreenRegion, CaptureResult>();
 
 			var regionsByScreen = regions.GroupBy(x => x.ScreenName).ToList();
 
 			if (regionsByScreen.Count == 0)
-				return new List<Bitmap>();
+				return new List<CaptureResult>();
 
 			int timeoutMilliseconds;
 
@@ -67,51 +67,99 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 			{
 				Capture capture = _capturesByScreen[grouping.Key];
 
-				if (capture.LastFrameInfo == null) //last frame does not exist or timed out
-					continue;
-
-				FrameMetadata metaData = GetMetadata(capture, capture.LastFrameInfo.Value);
-
-				if (metaData != null) // if null, there are no dirty regions in this frame
+				if (!capture.ScreenFound)
 				{
-					DataBox dataBox = capture.Device.ImmediateContext.MapSubresource(capture.Texture, 0, MapMode.Read, MapFlags.None);
-
-					Rectangle desktopBounds = capture.DesktopBounds.ToRectangle();
-
-					foreach (ScreenRegion screenRegion in grouping)
+					foreach (var screenRegion in grouping)
 					{
-						var screenRegionX = (int) (desktopBounds.Width*screenRegion.Rectangle.X);
-						var screenRegionY = (int) (desktopBounds.Height*screenRegion.Rectangle.Y);
-
-						var screenRegionWidth = (int) (desktopBounds.Width*screenRegion.Rectangle.Width);
-						var screenRegionHeight = (int) (desktopBounds.Height*screenRegion.Rectangle.Height);
-
-						var screenRegionRectangle = new Rectangle(screenRegionX, screenRegionY, screenRegionWidth, screenRegionHeight);
-
-						if (!RegionIsDirty(screenRegionRectangle, metaData.DirtyRectangles, metaData.MoveRectangles))
-							continue; // no changes in this area
-
-						Bitmap bitmap = _bitmapProvider.ProvideForScreenRegion(screenRegion, screenRegionWidth, screenRegionHeight, PixelFormat.Format32bppRgb);
-
-						CopyPart(bitmap, dataBox, screenRegionX, screenRegionY);
-
-						regionBitmapsDictionary[screenRegion] = bitmap;
+						regionResultDictionary[screenRegion] = new CaptureResult {State = CaptureState.ScreenNotFound};
 					}
-
-					capture.Device.ImmediateContext.UnmapSubresource(capture.Texture, 0);
+					continue;
 				}
 
-				capture.OutputDuplication.ReleaseFrame();
+				if (capture.LastFrameInfo == null) //last frame does not exist or timed out
+				{
+					foreach (var screenRegion in grouping)
+					{
+						regionResultDictionary[screenRegion] = new CaptureResult { State = CaptureState.NoChanges };
+					}
+					continue;
+				}
+
+				try
+				{
+					FrameMetadata metaData;
+					try
+					{
+						metaData = GetMetadata(capture, capture.LastFrameInfo.Value);
+					}
+					catch (SharpDXException ex)
+					{
+						if (ex.ResultCode.Code == ResultCode.AccessLost.Code)
+						{
+							capture.Dispose();
+							foreach (var screenRegion in grouping)
+							{
+								regionResultDictionary[screenRegion] = new CaptureResult { State = CaptureState.ScreenNotFound };
+							}
+							continue;
+						}
+						else
+						{
+							throw;
+						}
+					}
+					
+					if (metaData == null)
+					{
+						foreach (var screenRegion in grouping)
+						{
+							regionResultDictionary[screenRegion] = new CaptureResult {State = CaptureState.NoChanges};
+						}
+					}
+					else
+					{
+						DataBox dataBox = capture.Device.ImmediateContext.MapSubresource(capture.Texture, 0, MapMode.Read, MapFlags.None);
+						try
+						{
+							Rectangle desktopBounds = capture.DesktopBounds.ToRectangle();
+
+							foreach (ScreenRegion screenRegion in grouping)
+							{
+								var screenRegionX = (int) (desktopBounds.Width*screenRegion.Rectangle.X);
+								var screenRegionY = (int) (desktopBounds.Height*screenRegion.Rectangle.Y);
+
+								var screenRegionWidth = (int) (desktopBounds.Width*screenRegion.Rectangle.Width);
+								var screenRegionHeight = (int) (desktopBounds.Height*screenRegion.Rectangle.Height);
+
+								var screenRegionRectangle = new Rectangle(screenRegionX, screenRegionY, screenRegionWidth, screenRegionHeight);
+
+								if (!RegionIsDirty(screenRegionRectangle, metaData.DirtyRectangles, metaData.MoveRectangles))
+								{
+									regionResultDictionary[screenRegion] = new CaptureResult {State = CaptureState.NoChanges};
+									continue;
+								}
+
+								Bitmap bitmap = _bitmapProvider.ProvideForScreenRegion(screenRegion, screenRegionWidth, screenRegionHeight, PixelFormat.Format32bppRgb);
+
+								CopyPart(bitmap, dataBox, screenRegionX, screenRegionY);
+
+								regionResultDictionary[screenRegion] = new CaptureResult {State = CaptureState.NewBitmap, Bitmap = bitmap};
+							}
+						}
+						finally
+						{
+							capture.Device.ImmediateContext.UnmapSubresource(capture.Texture, 0);
+						}
+					}
+				}
+				finally
+				{
+					if (capture.OutputDuplication != null)
+						capture.OutputDuplication.ReleaseFrame();
+				}
 			}
 
-			var toReturn = new List<Bitmap>();
-			foreach (ScreenRegion screenRegion in regions)
-			{
-				Bitmap bitmap;
-				toReturn.Add(regionBitmapsDictionary.TryGetValue(screenRegion, out bitmap) ? bitmap : null);
-			}
-
-			return toReturn;
+			return regions.Select(screenRegion => regionResultDictionary[screenRegion]).ToList();
 		}
 
 		private void CaptureFrameIfAvailable(Capture capture, int timeoutMilliseconds)
@@ -120,13 +168,11 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 
 			bool frameAvailable;
 
-			if (!capture.Initialized)
+			if (!capture.Initialized || !capture.ScreenFound)
 			{
-				try
-				{
-					capture.ReInitialize();
-				}
-				catch (ScreenNotFoundException)
+				capture.ReInitialize();
+
+				if (!capture.Initialized || !capture.ScreenFound)
 				{
 					capture.LastFrameInfo = null;
 					return;
@@ -278,11 +324,11 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 						_outputDuplication = output1.DuplicateOutput(_device);
 						_texture = new Texture2D(_device, textureDescription);
 						_initialized = true;
+						_screenFound = true;
 						return;
 					}
 				}
-
-				throw new ScreenNotFoundException(ScreenName);
+				_screenFound = false;
 			}
 
 			public readonly string ScreenName;
@@ -291,6 +337,7 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 			private OutputDuplication _outputDuplication;
 			private Texture2D _texture;
 			private bool _initialized;
+			private bool _screenFound;
 
 			public OutputDuplicateFrameInformation? LastFrameInfo { get; set; }
 
@@ -319,10 +366,14 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 				get { return _initialized; }
 			}
 
+			public bool ScreenFound
+			{
+				get { return _screenFound; }
+			}
+
 			public void Dispose()
 			{
 				CleanupInternal();
-				_initialized = false;
 			}
 
 			private void CleanupInternal()
@@ -333,6 +384,9 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 					_outputDuplication.Dispose();
 				if (_texture != null)
 					_texture.Dispose();
+
+				_initialized = false;
+				_screenFound = false;
 			}
 		}
 

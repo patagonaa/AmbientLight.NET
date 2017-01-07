@@ -54,19 +54,27 @@ namespace AmbientLightNet.Configurator
 			string screenName = _selectedScreen.DeviceName;
 
 			var region = new ScreenRegion(screenName, new RectangleF(0, 0, 1, 1));
-			Bitmap imageToShow = _captureService.CaptureScreenRegions(new List<ScreenRegion> {region}, false)[0];
+			CaptureResult captureResult = _captureService.CaptureScreenRegions(new List<ScreenRegion> {region}, false)[0];
 
-			if (imageToShow == null)
+			Bitmap imageToShow;
+
+			if (captureResult.State == CaptureState.NoChanges)
 			{
 				if (_lastBitmap == null)
 					return;
 				imageToShow = _lastBitmap;
 			}
-			else
+			else if(captureResult.State == CaptureState.NewBitmap)
 			{
 				if (_lastBitmap != null)
 					_lastBitmap.Dispose();
+
+				imageToShow = captureResult.Bitmap;
 				_lastBitmap = imageToShow;
+			}
+			else
+			{
+				throw new InvalidOperationException("Invalid capture state");
 			}
 
 			e.Graphics.DrawImage(imageToShow, 0, 0, e.ClipRectangle.Width, e.ClipRectangle.Height);

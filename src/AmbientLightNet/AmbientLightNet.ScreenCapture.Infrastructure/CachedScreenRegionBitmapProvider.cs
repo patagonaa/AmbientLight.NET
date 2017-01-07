@@ -17,16 +17,19 @@ namespace AmbientLightNet.ScreenCapture.Infrastructure
 		public Bitmap ProvideForScreenRegion(ScreenRegion region, int width, int height, PixelFormat pixelFormat)
 		{
 			Bitmap bitmap;
-			if (_cache.TryGetValue(region, out bitmap))
+
+			lock (_cache)
 			{
-#if DEBUG
-				if (BitmapIsDisposed(bitmap))
-					throw new InvalidOperationException("Do not dispose cached Bitmaps!");
-#endif
-				return bitmap;
+				if (!_cache.TryGetValue(region, out bitmap))
+					_cache[region] = bitmap = new Bitmap(width, height, pixelFormat);
 			}
 
-			return _cache[region] = new Bitmap(width, height, pixelFormat);
+#if DEBUG
+			if (BitmapIsDisposed(bitmap))
+				throw new InvalidOperationException("Do not dispose cached Bitmaps!");
+#endif
+
+			return bitmap;
 		}
 
 		private static bool BitmapIsDisposed(Bitmap bitmap)
@@ -57,9 +60,12 @@ namespace AmbientLightNet.ScreenCapture.Infrastructure
 
 		public void Dispose()
 		{
-			foreach (Bitmap bitmap in _cache.Values)
+			lock (_cache)
 			{
-				bitmap.Dispose();
+				foreach (Bitmap bitmap in _cache.Values)
+				{
+					bitmap.Dispose();
+				}
 			}
 		}
 	}
