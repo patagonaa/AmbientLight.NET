@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>AmbientLightNet.Infrastructure</RootNamespace>
     <AssemblyName>AmbientLightNet.Infrastructure</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -63,7 +63,7 @@
   <ItemGroup>
     <Compile Include="AmbiLightConfig\AmbiLightConfig.cs" />
     <Compile Include="AmbiLightConfig\Output.cs" />
-    <Compile Include="AppConfiguration.cs" />
+    <Compile Include="CommonConfiguration.cs" />
     <Compile Include="AmbiLightConfig\ColorAveragingConfig.cs" />
     <Compile Include="ColorAveraging\GdiDownScalingAveraging.cs" />
     <Compile Include="ColorAveraging\GdiFastPixelAveraging.cs" />
@@ -77,10 +77,6 @@
     <Compile Include="ColorTransformer\IColorTransformer.cs" />
     <Compile Include="ColorTransformer\ThresholdColorTransformer.cs" />
     <Compile Include="Plugins.cs" />
-    <Compile Include="Logging\ConsoleLogger.cs" />
-    <Compile Include="Logging\ILogger.cs" />
-    <Compile Include="Logging\LoggerBase.cs" />
-    <Compile Include="Logging\LogLevel.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="AmbiLightConfig\ScreenRegionOutput.cs" />
     <Compile Include="ScreenCapture\ScreenCaptureServiceProvider.cs" />

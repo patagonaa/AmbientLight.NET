@@ -20,7 +20,7 @@ namespace AmbientLightNet.Infrastructure
 		{
 			Type interfaceType = typeof (IOutputPlugin);
 
-			DirectoryInfo directory = new DirectoryInfo(AppConfiguration.PluginDirectory);
+			DirectoryInfo directory = new DirectoryInfo(CommonConfiguration.PluginDirectory);
 			if (!directory.Exists)
 				directory.Create();
 

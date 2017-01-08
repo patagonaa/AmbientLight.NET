@@ -10,18 +10,18 @@ using AmbientLightNet.Infrastructure;
 using AmbientLightNet.Infrastructure.AmbiLightConfig;
 using AmbientLightNet.Infrastructure.ColorAveraging;
 using AmbientLightNet.Infrastructure.ColorTransformer;
-using AmbientLightNet.Infrastructure.Logging;
 using AmbientLightNet.Infrastructure.ScreenCapture;
 using AmbientLightNet.ScreenCapture.Infrastructure;
 using AmbiLightNet.PluginBase;
 using Newtonsoft.Json;
+using Topshelf.Logging;
 
 namespace AmbientLightNet.Service
 {
 	public class AmbiLightService : IDisposable
 	{
 		private readonly string _configPath;
-		private readonly ILogger _logger;
+		private readonly LogWriter _logger;
 		private bool _running;
 		private IScreenCaptureService _screenCaptureService;
 		private readonly object _configLock = new object();
@@ -30,11 +30,12 @@ namespace AmbientLightNet.Service
 		private readonly ColorTransformerService _colorTransformerService;
 		private IList<ScreenRegion> _screenRegions; //needed as reference for caching
 		private readonly ScreenCaptureServiceProvider _screenCaptureServiceProvider;
+		private Thread _mainThread;
 
-		public AmbiLightService(string configPath, ILogger logger)
+		public AmbiLightService(string configPath)
 		{
 			_configPath = configPath;
-			_logger = logger;
+			_logger = HostLogger.Get<AmbiLightService>();
 
 			_screenCaptureServiceProvider = new ScreenCaptureServiceProvider();
 			_colorAveragingServiceProvider = new ColorAveragingServiceProvider();
@@ -43,6 +44,35 @@ namespace AmbientLightNet.Service
 			AmbiLightConfig config = ReadConfig(_configPath);
 
 			ApplyConfig(config);
+
+			var configFileInfo = new FileInfo(configPath);
+			var watcher = new FileSystemWatcher(configFileInfo.DirectoryName, configFileInfo.Name);
+			watcher.Changed += (sender, eventArgs) =>
+			{
+				watcher.EnableRaisingEvents = false;
+				while (FileIsLocked(eventArgs.FullPath))
+				{
+					Thread.Sleep(100);
+				}
+				ReloadConfig();
+				watcher.EnableRaisingEvents = true;
+			};
+			watcher.EnableRaisingEvents = true;
+		}
+
+		private static bool FileIsLocked(string filename)
+		{
+			try
+			{
+				using (File.Open(filename, FileMode.Open, FileAccess.Read, FileShare.None))
+				{
+					return false;
+				}
+			}
+			catch (IOException)
+			{
+				return true;
+			}
 		}
 
 		private void ApplyConfig(AmbiLightConfig config)
@@ -153,11 +183,29 @@ namespace AmbientLightNet.Service
 
 		public void Start()
 		{
+			if(_running)
+				return;
+
+			if(_mainThread != null && _mainThread.ThreadState == ThreadState.Running)
+				_mainThread.Abort();
+
+			_running = true;
+
+			if(_mainThread == null || _mainThread.ThreadState != ThreadState.Running)
+				_mainThread = new Thread(MainLoop);
+
+			_mainThread.Start();
+		}
+
+		private void MainLoop()
+		{
 			_running = true;
 			
 			const int maxFps = 60;
 
 			const int minMillis = 1000 / maxFps;
+
+			var captureErrorCount = 0;
 
 			while (_running)
 			{
@@ -167,13 +215,20 @@ namespace AmbientLightNet.Service
 
 					Task<IList<CaptureResult>> captureTask = Task.Run(() => _screenCaptureService.CaptureScreenRegions(_screenRegions, true));
 					//Task<IList<CaptureResult>> captureTask = Task.FromResult(_screenCaptureService.CaptureScreenRegions(_screenRegions, true));
-
-					Task outputAllTask = captureTask.ContinueWith(HandleCaptureResults);
-
-					while (outputAllTask.Status != TaskStatus.RanToCompletion)
+					
+					while (captureTask.Status != TaskStatus.RanToCompletion)
 					{
-						if (outputAllTask.Exception != null)
-							throw outputAllTask.Exception;
+						if (captureTask.Exception != null)
+						{
+							if (captureErrorCount >= 5)
+								throw captureTask.Exception;
+
+							captureErrorCount++;
+							_logger.Warn(string.Format("Capture failed with exception! Try count: {0}", captureErrorCount), captureTask.Exception);
+							Thread.Sleep(1000);
+							break;
+						}
+						captureErrorCount = 0;
 
 						Thread.Sleep(10);
 
@@ -187,9 +242,8 @@ namespace AmbientLightNet.Service
 							{
 								if (outputConfig.ResendInterval != null && outputConfig.LastColorSetTime + outputConfig.ResendInterval.Value < utcNow)
 								{
-									outputConfig.LastColorSetTime = utcNow;
 									Task outputTask = OutputColor(outputConfig, regionConfig.LastColor, true);
-									_logger.Log(LogLevel.Debug, "[Region {0} Output {1}] Resend timeout elapsed.", outputConfig.RegionId, outputConfig.OutputId);
+									_logger.DebugFormat("[Region {0} Output {1}] Resend timeout elapsed.", outputConfig.RegionId, outputConfig.OutputId);
 									outputTasks.Add(outputTask);
 								}
 							}
@@ -197,6 +251,10 @@ namespace AmbientLightNet.Service
 
 						Task.WhenAll(outputTasks).Wait();
 					}
+
+					if (!captureTask.IsFaulted)
+						HandleCaptureResults(captureTask.Result);
+
 
 					DateTime endDt = DateTime.UtcNow;
 
@@ -211,10 +269,8 @@ namespace AmbientLightNet.Service
 			}
 		}
 
-		private void HandleCaptureResults(Task<IList<CaptureResult>> captureTask)
+		private void HandleCaptureResults(IList<CaptureResult> captureResults)
 		{
-			IList<CaptureResult> captureResults = captureTask.Result;
-
 			var outputTasks = new List<Task>();
 
 			for (var i = 0; i < _regionConfigurations.Count; i++)
@@ -231,6 +287,7 @@ namespace AmbientLightNet.Service
 						colorToSet = regionConfig.LastColor;
 						break;
 					case CaptureState.NewBitmap:
+						_logger.DebugFormat("[Region {0}] New frame available.", regionConfig.Id);
 						colorToSet = regionConfig.ColorAveragingService.GetAverageColor(captureResult.Bitmap);
 						break;
 					case CaptureState.ScreenNotFound:
@@ -242,14 +299,12 @@ namespace AmbientLightNet.Service
 
 				regionConfig.LastColor = colorToSet;
 
-				_logger.Log(LogLevel.Debug, "[Region {0}] New frame available.", regionConfig.Id);
-
 				foreach (OutputConfiguration outputConfig in regionConfig.OutputConfigs)
 				{
 					Task outputTask = OutputColor(outputConfig, colorToSet, false);
 					if (outputTask != null)
 					{
-						_logger.Log(LogLevel.Debug, "[Region {0} Output {1}] Color changed. outputting", outputConfig.RegionId, outputConfig.OutputId);
+						_logger.DebugFormat("[Region {0} Output {1}] Color changed. outputting", outputConfig.RegionId, outputConfig.OutputId);
 						outputTasks.Add(outputTask);
 					}
 				}
@@ -279,7 +334,7 @@ namespace AmbientLightNet.Service
 				}
 				catch (Exception ex)
 				{
-					_logger.Log(LogLevel.Error, "[Region {0} Output {1}] Output Color Failed: {2}", outputConfig.RegionId, outputConfig.OutputId, ex.ToString());
+					_logger.Error(string.Format("[Region {0} Output {1}] Output Color Failed!", outputConfig.RegionId, outputConfig.OutputId), ex);
 				}
 			});
 		}
@@ -288,7 +343,7 @@ namespace AmbientLightNet.Service
 		{
 			lock (_configLock)
 			{
-				_logger.Log(LogLevel.Info, "Reloading config...");
+				_logger.Info("Reloading config...");
 				AmbiLightConfig config = ReadConfig(_configPath);
 				ApplyConfig(config);
 			}

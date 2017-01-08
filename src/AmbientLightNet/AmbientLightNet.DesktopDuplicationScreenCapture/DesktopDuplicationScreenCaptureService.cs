@@ -47,7 +47,7 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 			}
 			else
 			{
-				timeoutMilliseconds = 0; // do not wait for frame, use latest frame if one is available
+				timeoutMilliseconds = (10 / regionsByScreen.Count) + 1; // + 1 if someone happens to want to capture more than 10 screens
 			}
 			
 			do
@@ -61,7 +61,7 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 
 					CaptureFrameIfAvailable(capture, timeoutMilliseconds);
 				}
-			} while (mayBlockIfNoChanges && regionsByScreen.All(x => _capturesByScreen[x.Key].LastFrameInfo == null));
+			} while (mayBlockIfNoChanges && regionsByScreen.All(x => _capturesByScreen[x.Key].LastFrameInfo == null) && regionsByScreen.Any(x => _capturesByScreen[x.Key].ScreenFound));
 
 			foreach (IGrouping<string, ScreenRegion> grouping in regionsByScreen)
 			{
@@ -293,14 +293,26 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 
 				Adapter[] adapters = factory.Adapters;
 
+				var toDispose = new HashSet<IDisposable>
+				{
+					factory
+				};
+
+				_screenFound = false;
+
 				foreach (Adapter adapter in adapters)
 				{
+					toDispose.Add(adapter);
 					foreach (Output output in adapter.Outputs)
 					{
-						OutputDescription outputDescription = output.Description;
+						toDispose.Add(output);
 
-						if (!outputDescription.IsAttachedToDesktop || outputDescription.DeviceName.Trim('\0') != ScreenName)
+						OutputDescription outputDescription = output.Description;
+						
+						if (_screenFound || !outputDescription.IsAttachedToDesktop || outputDescription.DeviceName.Trim('\0') != ScreenName)
+						{
 							continue;
+						}
 
 						RawRectangle desktopBounds = outputDescription.DesktopBounds;
 						_desktopBounds = desktopBounds;
@@ -325,14 +337,17 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 						_texture = new Texture2D(_device, textureDescription);
 						_initialized = true;
 						_screenFound = true;
-						return;
 					}
 				}
-				_screenFound = false;
+				foreach (var disposable in toDispose)
+				{
+					disposable.Dispose();
+				}
 			}
 
 			public readonly string ScreenName;
 			private RawRectangle _desktopBounds;
+			private Adapter _adapter;
 			private Device _device;
 			private OutputDuplication _outputDuplication;
 			private Texture2D _texture;

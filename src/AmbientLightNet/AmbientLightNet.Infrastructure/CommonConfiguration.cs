@@ -2,7 +2,7 @@
 
 namespace AmbientLightNet.Infrastructure
 {
-	public static class AppConfiguration
+	public static class CommonConfiguration
 	{
 		public static string PluginDirectory
 		{

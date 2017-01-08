@@ -1,55 +1,38 @@
-﻿using System;
-using System.IO;
-using System.Threading;
-using AmbientLightNet.Infrastructure.Logging;
+﻿using log4net.Config;
+using Topshelf;
 
 namespace AmbientLightNet.Service
 {
 	class Program
 	{
-		static void Main(string[] args)
+		static void Main()
 		{
-			ILogger logger = new ConsoleLogger(LogLevel.Debug);
-
-			if (args.Length < 1 || !File.Exists(args[0]))
+			HostFactory.Run(x =>
 			{
-				logger.Log(LogLevel.Fatal, "Config Parameter with existing config expected!");
-				logger.Log(LogLevel.Fatal, "e.g. \"AmbientLightNet.Service.exe config.json\"");
-				Console.ReadKey(true);
-				return;
-			}
+				XmlConfigurator.Configure();
 
-			var watcher = new FileSystemWatcher(Path.GetDirectoryName(args[0]) == "" ? "." : Path.GetDirectoryName(args[0]), Path.GetFileName(args[0]));
-			
-			var ambiLight = new AmbiLightService(args[0], logger);
+				x.UseLog4Net();
 
-			watcher.Changed += (sender, eventArgs) =>
-			{
-				watcher.EnableRaisingEvents = false;
-				while (FileIsLocked(eventArgs.FullPath))
+				x.Service<AmbiLightService>(s =>
 				{
-					Thread.Sleep(100);
-				}
-				ambiLight.ReloadConfig();
-				watcher.EnableRaisingEvents = true;
-			};
-			watcher.EnableRaisingEvents = true;
-			ambiLight.Start();
-		}
+					s.ConstructUsing(name => new AmbiLightService(ServiceConfiguration.ConfigFile));
+					s.WhenStarted(service => service.Start());
+					s.WhenStopped(service => service.Stop());
+				});
+				x.RunAsLocalSystem();
 
-		private static bool FileIsLocked(string filename)
-		{
-			try
-			{
-				using (File.Open(filename, FileMode.Open, FileAccess.Read, FileShare.None))
+				x.EnableServiceRecovery(r =>
 				{
-					return false;
-				}
-			}
-			catch (IOException)
-			{
-				return true;
-			}
+					r.RestartService(1);
+					r.RestartService(5);
+					r.RestartService(10);
+					r.OnCrashOnly();
+					r.SetResetPeriod(0);
+				});
+
+				x.SetServiceName("AmbientLightNet.Service");
+				x.SetDisplayName("AmbientLightNet Background Capture Service");
+			});
 		}
 	}
 }
