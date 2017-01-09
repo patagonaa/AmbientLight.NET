@@ -347,7 +347,6 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 
 			public readonly string ScreenName;
 			private RawRectangle _desktopBounds;
-			private Adapter _adapter;
 			private Device _device;
 			private OutputDuplication _outputDuplication;
 			private Texture2D _texture;
