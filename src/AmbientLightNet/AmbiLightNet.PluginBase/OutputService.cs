@@ -4,18 +4,13 @@ namespace AmbiLightNet.PluginBase
 {
 	public abstract class OutputService : IDisposable
 	{
-		public TimeSpan? DefaultResendInterval { get; private set; }
-
-		protected OutputService(TimeSpan? defaultResendInterval)
-		{
-			DefaultResendInterval = defaultResendInterval;
-		}
-
 		public abstract void Initialize(IOutputInfo outputInfo);
 
 		public abstract void Output(ColorF color);
 
 		public abstract bool ColorsEqual(ColorF first, ColorF second);
+
+		public abstract TimeSpan? GetResendInterval(int resendCount);
 
 		public virtual void Dispose()
 		{
@@ -24,10 +19,6 @@ namespace AmbiLightNet.PluginBase
 
 	public abstract class OutputService<TOutputType> : OutputService where TOutputType : class, IOutputInfo
 	{
-		protected OutputService(TimeSpan? defaultResendInterval) : base(defaultResendInterval)
-		{
-		}
-
 		public sealed override void Initialize(IOutputInfo outputInfo)
 		{
 			Initialize((TOutputType) outputInfo);

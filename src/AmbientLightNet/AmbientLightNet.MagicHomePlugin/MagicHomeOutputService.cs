@@ -9,12 +9,6 @@ namespace AmbientLightNet.MagicHomePlugin
 {
 	public class MagicHomeOutputService : OutputService<MagicHomeLedOutput>
 	{
-		public MagicHomeOutputService() 
-			: base(TimeSpan.FromMilliseconds(100))
-		{
-			
-		}
-
 		private Device _device;
 
 		public override void Initialize(MagicHomeLedOutput outputType)
@@ -55,6 +49,23 @@ namespace AmbientLightNet.MagicHomePlugin
 		public override bool ColorsEqual(ColorF first, ColorF second)
 		{
 			return ((Color) first) == ((Color) second);
+		}
+
+		public override TimeSpan? GetResendInterval(int resendCount)
+		{
+			if (resendCount == 0)
+			{
+				return TimeSpan.FromMilliseconds(100);
+			}
+			if (resendCount > 0 && resendCount <= 10)
+			{
+				return TimeSpan.FromSeconds(1);
+			}
+			if (resendCount > 10 && resendCount <= 20)
+			{
+				return TimeSpan.FromSeconds(10);
+			}
+			return TimeSpan.FromSeconds(60);
 		}
 
 		public override void Dispose()

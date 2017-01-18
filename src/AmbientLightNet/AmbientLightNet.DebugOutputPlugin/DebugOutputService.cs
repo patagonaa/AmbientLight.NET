@@ -8,10 +8,6 @@ namespace AmbientLightNet.DebugOutputPlugin
 {
 	public class DebugOutputService : OutputService
 	{
-		public DebugOutputService() : base(null)
-		{
-		}
-
 		private DebugOutputForm _form;
 		private Thread _thread;
 
@@ -32,6 +28,11 @@ namespace AmbientLightNet.DebugOutputPlugin
 		public override bool ColorsEqual(ColorF first, ColorF second)
 		{
 			return ((Color)first) == ((Color)second);
+		}
+
+		public override TimeSpan? GetResendInterval(int resendCount)
+		{
+			return null;
 		}
 
 		public override void Dispose()

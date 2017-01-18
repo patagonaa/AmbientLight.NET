@@ -5,6 +5,6 @@ namespace AmbientLightNet.ScreenCapture.Infrastructure
 {
 	public interface IScreenCaptureService : IDisposable
 	{
-		IList<CaptureResult> CaptureScreenRegions(IList<ScreenRegion> regions, bool mayBlockIfNoChanges);
+		IList<CaptureResult> CaptureScreenRegions(IList<ScreenRegion> regions, int? maxBlockMilliseconds);
 	}
 }

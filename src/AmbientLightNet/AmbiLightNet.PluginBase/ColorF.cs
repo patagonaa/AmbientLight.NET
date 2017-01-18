@@ -99,5 +99,10 @@ namespace AmbiLightNet.PluginBase
 			       Math.Abs(G - colorF.G) < tolerance &&
 			       Math.Abs(B - colorF.B) < tolerance;
 		}
+
+		public override string ToString()
+		{
+			return string.Format("#{0:X2}{1:X2}{2:X2}", (int)(R * 255), (int)(G * 255), (int)(B * 255));
+		}
 	}
 }

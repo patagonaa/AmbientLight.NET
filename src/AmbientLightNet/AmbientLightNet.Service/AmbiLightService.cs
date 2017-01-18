@@ -159,7 +159,7 @@ namespace AmbientLightNet.Service
 								Type = typeof (ThresholdColorTransformer),
 								Config = new Dictionary<string, object>
 								{
-									{"threshold", "0.02"}
+									{"threshold", "0.01"}
 								}
 							}
 						};
@@ -169,7 +169,7 @@ namespace AmbientLightNet.Service
 					{
 						ColorTransformerContexts = colorTransformerConfigs.Select(x => new ColorTransformerContext(x)).ToList(),
 						OutputService = outputService,
-						ResendInterval = outputService.DefaultResendInterval
+						ResendIntervalFunc = outputService.GetResendInterval,
 					};
 
 					regionConfig.OutputConfigs.Add(outputConfig);
@@ -201,11 +201,15 @@ namespace AmbientLightNet.Service
 		{
 			_running = true;
 			
-			const int maxFps = 60;
+			const int maxFps = 65;
 
-			const int minMillis = 1000 / maxFps;
+			TimeSpan minWaitTime = TimeSpan.FromMilliseconds(1000d / maxFps);
 
 			var captureErrorCount = 0;
+
+			var numSamples = 10;
+
+			var timeSamples = new Queue<TimeSpan>();
 
 			while (_running)
 			{
@@ -213,24 +217,29 @@ namespace AmbientLightNet.Service
 				{
 					DateTime startDt = DateTime.UtcNow;
 
-					Task<IList<CaptureResult>> captureTask = Task.Run(() => _screenCaptureService.CaptureScreenRegions(_screenRegions, true));
-					//Task<IList<CaptureResult>> captureTask = Task.FromResult(_screenCaptureService.CaptureScreenRegions(_screenRegions, true));
+					Task<IList<CaptureResult>> captureTask = Task.Run(() => _screenCaptureService.CaptureScreenRegions(_screenRegions, 10000));
+					//Task<IList<CaptureResult>> captureTask = Task.FromResult(_screenCaptureService.CaptureScreenRegions(_screenRegions, null));
 					
-					while (captureTask.Status != TaskStatus.RanToCompletion)
+					while (_running)
 					{
-						if (captureTask.Exception != null)
+						try
+						{
+							if (captureTask.Wait(10))
+							{
+								captureErrorCount = 0;
+								break;
+							}
+						}
+						catch (AggregateException ex)
 						{
 							if (captureErrorCount >= 5)
-								throw captureTask.Exception;
+								throw;
 
 							captureErrorCount++;
-							_logger.Warn(string.Format("Capture failed with exception! Try count: {0}", captureErrorCount), captureTask.Exception);
+							_logger.Warn(string.Format("Capture failed with exception! Try count: {0}", captureErrorCount), ex);
 							Thread.Sleep(1000);
 							break;
 						}
-						captureErrorCount = 0;
-
-						Thread.Sleep(10);
 
 						var utcNow = DateTime.UtcNow;
 
@@ -240,10 +249,12 @@ namespace AmbientLightNet.Service
 						{
 							foreach (OutputConfiguration outputConfig in regionConfig.OutputConfigs)
 							{
-								if (outputConfig.ResendInterval != null && outputConfig.LastColorSetTime + outputConfig.ResendInterval.Value < utcNow)
+								TimeSpan? resendInterval = outputConfig.ResendIntervalFunc(outputConfig.ResendCount);
+
+								if (resendInterval != null && outputConfig.LastColorSetTime + resendInterval.Value < utcNow)
 								{
 									Task outputTask = OutputColor(outputConfig, regionConfig.LastColor, true);
-									_logger.DebugFormat("[Region {0} Output {1}] Resend timeout elapsed.", outputConfig.RegionId, outputConfig.OutputId);
+									_logger.InfoFormat("[Region {0} Output {1}] Resend timeout elapsed.", outputConfig.RegionId, outputConfig.OutputId);
 									outputTasks.Add(outputTask);
 								}
 							}
@@ -252,18 +263,26 @@ namespace AmbientLightNet.Service
 						Task.WhenAll(outputTasks).Wait();
 					}
 
-					if (!captureTask.IsFaulted)
+					if (!captureTask.IsFaulted && _running)
 						HandleCaptureResults(captureTask.Result);
-
-
+					
 					DateTime endDt = DateTime.UtcNow;
 
-					var timeSpan = (int)(endDt - startDt).TotalMilliseconds;
+					var timeSpan = (endDt - startDt);
 
-					if (timeSpan < minMillis)
+					TimeSpan waitTime = TimeSpan.Zero;
+					if (timeSpan < minWaitTime)
 					{
-						int waitTime = minMillis - timeSpan;
+						waitTime = (minWaitTime - timeSpan);
 						Thread.Sleep(waitTime);
+					}
+
+					timeSamples.Enqueue(timeSpan + waitTime);
+
+					if (timeSamples.Count >= numSamples)
+					{
+						_logger.DebugFormat("{0:0.00} fps", (1000*numSamples)/timeSamples.Sum(x => x.TotalMilliseconds));
+						timeSamples.Dequeue();
 					}
 				}
 			}
@@ -304,7 +323,7 @@ namespace AmbientLightNet.Service
 					Task outputTask = OutputColor(outputConfig, colorToSet, false);
 					if (outputTask != null)
 					{
-						_logger.DebugFormat("[Region {0} Output {1}] Color changed. outputting", outputConfig.RegionId, outputConfig.OutputId);
+						_logger.InfoFormat("[Region {0} Output {1}] Color changed ({2})", outputConfig.RegionId, outputConfig.OutputId, colorToSet);
 						outputTasks.Add(outputTask);
 					}
 				}
@@ -313,7 +332,7 @@ namespace AmbientLightNet.Service
 			Task.WhenAll(outputTasks).Wait();
 		}
 
-		private Task OutputColor(OutputConfiguration outputConfig, ColorF colorToSet, bool resendSameColor)
+		private Task OutputColor(OutputConfiguration outputConfig, ColorF colorToSet, bool isResend)
 		{
 			OutputService outputService = outputConfig.OutputService;
 
@@ -321,11 +340,17 @@ namespace AmbientLightNet.Service
 
 			var outputColor = _colorTransformerService.Transform(colorTransformerContexts, colorToSet);
 
-			if (!resendSameColor && outputConfig.LastColor.HasValue && outputService.ColorsEqual(outputColor, outputConfig.LastColor.Value))
+			if (!isResend && outputConfig.LastColor.HasValue && outputService.ColorsEqual(outputColor, outputConfig.LastColor.Value))
 				return null;
 
 			outputConfig.LastColor = outputColor;
 			outputConfig.LastColorSetTime = DateTime.UtcNow;
+
+			if (isResend)
+				outputConfig.ResendCount++;
+			else
+				outputConfig.ResendCount = 0;
+
 			return Task.Run(() =>
 			{
 				try
@@ -407,7 +432,8 @@ namespace AmbientLightNet.Service
 			public IList<ColorTransformerContext> ColorTransformerContexts { get; set; }
 			public ColorF? LastColor { get; set; }
 			public DateTime LastColorSetTime { get; set; }
-			public TimeSpan? ResendInterval { get; set; }
+			public int ResendCount { get; set; }
+			public Func<int, TimeSpan?> ResendIntervalFunc { get; set; }
 
 			public void Dispose()
 			{

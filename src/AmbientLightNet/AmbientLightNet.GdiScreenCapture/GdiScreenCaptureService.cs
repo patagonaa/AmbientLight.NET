@@ -19,7 +19,7 @@ namespace AmbientLightNet.GdiScreenCapture
 				_bitmapProvider = new NonCachedScreenRegionBitmapProvider();
 		}
 		
-		public IList<CaptureResult> CaptureScreenRegions(IList<ScreenRegion> regions, bool mayBlockIfNoChanges)
+		public IList<CaptureResult> CaptureScreenRegions(IList<ScreenRegion> regions, int? maxBlockMilliseconds)
 		{
 			Screen[] allScreens = Screen.AllScreens;
 			var toReturn = new List<CaptureResult>();

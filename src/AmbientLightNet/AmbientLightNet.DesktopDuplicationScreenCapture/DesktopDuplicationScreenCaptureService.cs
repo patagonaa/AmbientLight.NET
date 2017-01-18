@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using AmbientLightNet.ScreenCapture.Infrastructure;
 using SharpDX;
 using SharpDX.Direct3D11;
@@ -30,7 +31,7 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 				_bitmapProvider = new NonCachedScreenRegionBitmapProvider();
 		}
 
-		public IList<CaptureResult> CaptureScreenRegions(IList<ScreenRegion> regions, bool mayBlockIfNoChanges)
+		public IList<CaptureResult> CaptureScreenRegions(IList<ScreenRegion> regions, int? maxBlockMilliseconds)
 		{
 			var regionResultDictionary = new Dictionary<ScreenRegion, CaptureResult>();
 
@@ -41,15 +42,17 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 
 			int timeoutMilliseconds;
 
-			if (regionsByScreen.Count == 1 && mayBlockIfNoChanges)
+			if (regionsByScreen.Count == 1)
 			{
-				timeoutMilliseconds = int.MaxValue; // we could actually use windows.h's "INFINITE" constant but SharpDX's OutputDuplication.AcquireNextFrame doesn't take a UINT
+				timeoutMilliseconds = maxBlockMilliseconds ?? int.MaxValue; // we could actually use windows.h's "INFINITE" constant but SharpDX's OutputDuplication.AcquireNextFrame doesn't take a UINT
 			}
 			else
 			{
-				timeoutMilliseconds = (10 / regionsByScreen.Count) + 1; // + 1 if someone happens to want to capture more than 10 screens
+				timeoutMilliseconds = (int) Math.Ceiling((maxBlockMilliseconds ?? 10d) / regionsByScreen.Count);
 			}
-			
+
+			var startDt = DateTime.UtcNow;
+
 			do
 			{
 				foreach (IGrouping<string, ScreenRegion> grouping in regionsByScreen)
@@ -61,7 +64,15 @@ namespace AmbientLightNet.DesktopDuplicationScreenCapture
 
 					CaptureFrameIfAvailable(capture, timeoutMilliseconds);
 				}
-			} while (mayBlockIfNoChanges && regionsByScreen.All(x => _capturesByScreen[x.Key].LastFrameInfo == null) && regionsByScreen.Any(x => _capturesByScreen[x.Key].ScreenFound));
+
+
+				if (maxBlockMilliseconds == 0 || (maxBlockMilliseconds.HasValue && (DateTime.UtcNow - startDt).TotalMilliseconds > maxBlockMilliseconds.Value))
+					break;
+
+				if (regionsByScreen.All(x => !_capturesByScreen[x.Key].ScreenFound))
+					Thread.Sleep(Math.Min(1000, (maxBlockMilliseconds ?? int.MaxValue)/5));
+
+			} while (regionsByScreen.All(x => _capturesByScreen[x.Key].LastFrameInfo == null));
 
 			foreach (IGrouping<string, ScreenRegion> grouping in regionsByScreen)
 			{

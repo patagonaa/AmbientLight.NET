@@ -54,7 +54,7 @@ namespace AmbientLightNet.Configurator
 			string screenName = _selectedScreen.DeviceName;
 
 			var region = new ScreenRegion(screenName, new RectangleF(0, 0, 1, 1));
-			CaptureResult captureResult = _captureService.CaptureScreenRegions(new List<ScreenRegion> {region}, false)[0];
+			CaptureResult captureResult = _captureService.CaptureScreenRegions(new List<ScreenRegion> {region}, 0)[0];
 
 			Bitmap imageToShow;
 
