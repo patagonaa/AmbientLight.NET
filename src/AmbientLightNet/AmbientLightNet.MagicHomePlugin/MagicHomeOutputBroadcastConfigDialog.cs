@@ -17,7 +17,6 @@ namespace AmbientLightNet.MagicHomePlugin
 		public MagicHomeOutputBroadcastConfigDialog()
 		{
 			InitializeComponent();
-			RefreshDevicesList();
 
 			deviceTypesList.DisplayMember = "Value";
 
@@ -32,6 +31,7 @@ namespace AmbientLightNet.MagicHomePlugin
 			_selectedType = DeviceType.RgbWarmwhite;
 			_selectedDevice = null;
 		}
+
 
 		private void RefreshTypesList()
 		{
