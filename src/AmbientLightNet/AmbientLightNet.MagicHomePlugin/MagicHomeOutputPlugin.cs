@@ -19,7 +19,7 @@ namespace AmbientLightNet.MagicHomePlugin
 
 		public IOutputInfo GetNewOutputInfo()
 		{
-			return new MagicHomeLedOutput();
+			return new MagicHomeLedOutputInfo();
 		}
 
 		public OutputService GetNewOutputService()

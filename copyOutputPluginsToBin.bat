@@ -1,22 +1,25 @@
 @echo off
 
 SET pluginName=AmbientLightNet.MagicHomePlugin
-SET executingAssembly=AmbientLightNet.Configurator
-CALL :copyForAllConfigs
-
-SET pluginName=AmbientLightNet.MagicHomePlugin
-SET executingAssembly=AmbientLightNet.Service
-CALL :copyForAllConfigs
+CALL :copyForAllExecutablesAndConfigs
 
 SET pluginName=AmbientLightNet.DebugOutputPlugin
-SET executingAssembly=AmbientLightNet.Configurator
-CALL :copyForAllConfigs
+CALL :copyForAllExecutablesAndConfigs
 
-SET pluginName=AmbientLightNet.DebugOutputPlugin
-SET executingAssembly=AmbientLightNet.Service
-CALL :copyForAllConfigs
+SET pluginName=AmbientLightNet.SerialOutputPlugin
+CALL :copyForAllExecutablesAndConfigs
 
 GOTO :end
+
+:copyForAllExecutablesAndConfigs
+
+SET executingAssembly=AmbientLightNet.Service
+CALL :copyForAllConfigs
+
+SET executingAssembly=AmbientLightNet.Configurator
+CALL :copyForAllConfigs
+
+GOTO :eof
 
 :copyForAllConfigs
 

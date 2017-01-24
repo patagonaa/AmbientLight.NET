@@ -11,6 +11,7 @@ using AmbientLightNet.Infrastructure.AmbiLightConfig;
 using AmbientLightNet.Infrastructure.ColorAveraging;
 using AmbientLightNet.Infrastructure.ColorTransformer;
 using AmbientLightNet.Infrastructure.ScreenCapture;
+using AmbientLightNet.Infrastructure.Utils;
 using AmbientLightNet.ScreenCapture.Infrastructure;
 using AmbiLightNet.PluginBase;
 using Newtonsoft.Json;
@@ -81,8 +82,7 @@ namespace AmbientLightNet.Service
 				_screenCaptureService.Dispose();
 
 			_screenCaptureService = _screenCaptureServiceProvider.Provide(true);
-
-
+			
 			List<IOutputPlugin> plugins = OutputPlugins.GetAvailablePlugins();
 
 			List<ScreenRegionOutput> regions = config.RegionsToOutput;
@@ -117,7 +117,8 @@ namespace AmbientLightNet.Service
 					if (plugin == null)
 						throw new InvalidOperationException(string.Format("Missing OutputPlugin {0}", outputInfo.PluginName));
 
-					OutputService outputService = plugin.GetNewOutputService();
+					OutputService outputService = _regionConfigurations.SelectMany(x => x.OutputConfigs).Select(x => x.OutputService).FirstOrDefault(x => x.IsReusableFor(outputInfo)) ?? plugin.GetNewOutputService();
+
 					outputService.Initialize(outputInfo);
 
 					IList<ColorTransformerConfig> colorTransformerConfigs = output.ColorTransformerConfigs;
@@ -170,6 +171,7 @@ namespace AmbientLightNet.Service
 						ColorTransformerContexts = colorTransformerConfigs.Select(x => new ColorTransformerContext(x)).ToList(),
 						OutputService = outputService,
 						ResendIntervalFunc = outputService.GetResendInterval,
+						OutputInfo = outputInfo
 					};
 
 					regionConfig.OutputConfigs.Add(outputConfig);
@@ -242,8 +244,8 @@ namespace AmbientLightNet.Service
 						}
 
 						var utcNow = DateTime.UtcNow;
-
-						var outputTasks = new List<Task>();
+						
+						var toCommit = new HashSet<OutputService>(new ReferenceComparer<OutputService>());
 
 						foreach (RegionConfiguration regionConfig in _regionConfigurations)
 						{
@@ -253,14 +255,14 @@ namespace AmbientLightNet.Service
 
 								if (resendInterval != null && outputConfig.LastColorSetTime + resendInterval.Value < utcNow)
 								{
-									Task outputTask = OutputColor(outputConfig, regionConfig.LastColor, true);
+									SetColor(outputConfig, regionConfig.LastColor, true);
+									toCommit.Add(outputConfig.OutputService);
 									_logger.InfoFormat("[Region {0} Output {1}] Resend timeout elapsed.", outputConfig.RegionId, outputConfig.OutputId);
-									outputTasks.Add(outputTask);
 								}
 							}
 						}
 
-						Task.WhenAll(outputTasks).Wait();
+						Task.WhenAll(toCommit.Select(x => Task.Run((Action) x.Commit))).Wait();
 					}
 
 					if (!captureTask.IsFaulted && _running)
@@ -290,7 +292,7 @@ namespace AmbientLightNet.Service
 
 		private void HandleCaptureResults(IList<CaptureResult> captureResults)
 		{
-			var outputTasks = new List<Task>();
+			var toCommit = new HashSet<OutputService>(new ReferenceComparer<OutputService>());
 
 			for (var i = 0; i < _regionConfigurations.Count; i++)
 			{
@@ -320,19 +322,19 @@ namespace AmbientLightNet.Service
 
 				foreach (OutputConfiguration outputConfig in regionConfig.OutputConfigs)
 				{
-					Task outputTask = OutputColor(outputConfig, colorToSet, false);
-					if (outputTask != null)
+					bool colorChanged = SetColor(outputConfig, colorToSet, false);
+					if (colorChanged)
 					{
+						toCommit.Add(outputConfig.OutputService);
 						_logger.InfoFormat("[Region {0} Output {1}] Color changed ({2})", outputConfig.RegionId, outputConfig.OutputId, colorToSet);
-						outputTasks.Add(outputTask);
 					}
 				}
 			}
 
-			Task.WhenAll(outputTasks).Wait();
+			Task.WhenAll(toCommit.Select(x => Task.Run((Action)x.Commit))).Wait();
 		}
 
-		private Task OutputColor(OutputConfiguration outputConfig, ColorF colorToSet, bool isResend)
+		private bool SetColor(OutputConfiguration outputConfig, ColorF colorToSet, bool isResend)
 		{
 			OutputService outputService = outputConfig.OutputService;
 
@@ -341,7 +343,7 @@ namespace AmbientLightNet.Service
 			var outputColor = _colorTransformerService.Transform(colorTransformerContexts, colorToSet);
 
 			if (!isResend && outputConfig.LastColor.HasValue && outputService.ColorsEqual(outputColor, outputConfig.LastColor.Value))
-				return null;
+				return false;
 
 			outputConfig.LastColor = outputColor;
 			outputConfig.LastColorSetTime = DateTime.UtcNow;
@@ -351,17 +353,8 @@ namespace AmbientLightNet.Service
 			else
 				outputConfig.ResendCount = 0;
 
-			return Task.Run(() =>
-			{
-				try
-				{
-					outputService.Output(outputColor);
-				}
-				catch (Exception ex)
-				{
-					_logger.Error(string.Format("[Region {0} Output {1}] Output Color Failed!", outputConfig.RegionId, outputConfig.OutputId), ex);
-				}
-			});
+			outputService.SetColor(outputColor, outputConfig.OutputInfo);
+			return true;
 		}
 
 		public void ReloadConfig()
@@ -434,6 +427,7 @@ namespace AmbientLightNet.Service
 			public DateTime LastColorSetTime { get; set; }
 			public int ResendCount { get; set; }
 			public Func<int, TimeSpan?> ResendIntervalFunc { get; set; }
+			public IOutputInfo OutputInfo { get; set; }
 
 			public void Dispose()
 			{

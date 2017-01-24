@@ -1,10 +1,7 @@
 ﻿using AmbiLightNet.PluginBase;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AmbientLightNet.Infrastructure.AmbiLightConfig
 {
@@ -14,7 +11,6 @@ namespace AmbientLightNet.Infrastructure.AmbiLightConfig
 		public IOutputInfo OutputInfo { get; set; }
 		public IList<ColorTransformerConfig> ColorTransformerConfigs { get; set; }
 		
-
 		public Output()
 		{
 		}

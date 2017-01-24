@@ -58,7 +58,7 @@ namespace AmbientLightNet.MagicHomePlugin
 						port = int.Parse(split[1], CultureInfo.InvariantCulture);
 					}
 
-					return new MagicHomeLedOutput
+					return new MagicHomeLedOutputInfo
 					{
 						AddressType = AddressType.IpAddress,
 						DeviceType = ((KeyValuePair<DeviceType, string>)deviceTypesList.SelectedItem).Key,
@@ -70,7 +70,7 @@ namespace AmbientLightNet.MagicHomePlugin
 			}
 			set
 			{
-				var magicHomeOutputInfo = value as MagicHomeLedOutput;
+				var magicHomeOutputInfo = value as MagicHomeLedOutputInfo;
 				if(magicHomeOutputInfo == null)
 					return;
 				_selectedType = magicHomeOutputInfo.DeviceType;

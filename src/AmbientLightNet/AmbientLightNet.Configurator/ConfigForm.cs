@@ -53,7 +53,7 @@ namespace AmbientLightNet.Configurator
 
 			string screenName = _selectedScreen.DeviceName;
 
-			var region = new ScreenRegion(screenName, new RectangleF(0, 0, 1, 1));
+			var region = new ScreenRegion(screenName, new RectangleFSerializable(0, 0, 1, 1));
 			CaptureResult captureResult = _captureService.CaptureScreenRegions(new List<ScreenRegion> {region}, 0)[0];
 
 			Bitmap imageToShow;
@@ -84,8 +84,8 @@ namespace AmbientLightNet.Configurator
 			foreach (ScreenRegionOutput screenRegionOutput in screenRegionsList.Items.Cast<ScreenRegionOutput>().Where(x => x.ScreenRegion.ScreenName == screenName))
 			{
 				var isSelected = selectedRegionOutput == screenRegionOutput;
-				
-				RectangleF screenRegionRect = screenRegionOutput.ScreenRegion.Rectangle;
+
+				RectangleFSerializable screenRegionRect = screenRegionOutput.ScreenRegion.Rectangle;
 				e.Graphics.DrawRectangle(isSelected ? Pens.Lime : Pens.Red,
 					screenRegionRect.X*e.ClipRectangle.Width,
 					screenRegionRect.Y*e.ClipRectangle.Height,
@@ -199,7 +199,7 @@ namespace AmbientLightNet.Configurator
 
 			if (region != null)
 			{
-				RectangleF rect = region.ScreenRegion.Rectangle;
+				RectangleFSerializable rect = region.ScreenRegion.Rectangle;
 
 				switch (_screenClickMode)
 				{
@@ -234,7 +234,7 @@ namespace AmbientLightNet.Configurator
 			regionsList.SelectedIndex = idx;
 		}
 
-		private static void SetRegion(ref RectangleF rectangle, PointF? topLeft, PointF? bottomRight)
+		private static void SetRegion(ref RectangleFSerializable rectangle, PointF? topLeft, PointF? bottomRight)
 		{
 			PointF topLeftValue = topLeft ?? rectangle.Location;
 			PointF bottomRightValue = bottomRight ?? PointF.Add(rectangle.Location, rectangle.Size);
@@ -277,7 +277,7 @@ namespace AmbientLightNet.Configurator
 		{
 			screenRegionsList.Items.Add(new ScreenRegionOutput
 			{
-				ScreenRegion = new ScreenRegion(_selectedScreen.DeviceName, new RectangleF(0, 0, 0, 0)),
+				ScreenRegion = new ScreenRegion(_selectedScreen.DeviceName, new RectangleFSerializable(0, 0, 0, 0)),
 				Outputs = null
 			});
 

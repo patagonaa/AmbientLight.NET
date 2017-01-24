@@ -8,7 +8,7 @@ using System.Net;
 
 namespace AmbientLightNet.MagicHomePlugin
 {
-	public class MagicHomeLedOutput : IOutputInfo
+	public class MagicHomeLedOutputInfo : IOutputInfo
 	{
 		public AddressType AddressType { get; set; }
 		public int? Port { get; set; }
@@ -36,7 +36,7 @@ namespace AmbientLightNet.MagicHomePlugin
 						toReturn["Port"] = Port.Value.ToString(CultureInfo.InvariantCulture);
 					break;
 				default:
-					break;
+					throw new ArgumentOutOfRangeException();
 			}
 
 			return toReturn;
@@ -45,29 +45,31 @@ namespace AmbientLightNet.MagicHomePlugin
 		public void Deserialize(Dictionary<string, string> dictionary)
 		{
 			DeviceType = (DeviceType) Enum.Parse(typeof (DeviceType), dictionary["DeviceType"]);
-            AddressType = AddressType.MacAddress;
+			AddressType = AddressType.MacAddress;
 
-            if (dictionary.ContainsKey("AddressType"))
-            {
-	            AddressType = (AddressType) Enum.Parse(typeof (AddressType), dictionary["AddressType"]);
-            }
+			if (dictionary.ContainsKey("AddressType"))
+			{
+				AddressType = (AddressType) Enum.Parse(typeof (AddressType), dictionary["AddressType"]);
+			}
 
 			switch (AddressType)
 			{
 				case AddressType.IpAddress:
 					IPAddress = IPAddress.Parse(dictionary["IPAddress"]);
-					Port = dictionary.ContainsKey("Port") ? int.Parse(dictionary["Port"]) : (int?)null;
+					Port = dictionary.ContainsKey("Port") ? int.Parse(dictionary["Port"]) : (int?) null;
 					break;
 				case AddressType.MacAddress:
 					MacAddress = PhysicalAddress.Parse(dictionary["MacAddress"]);
 					break;
-
 				default:
-					throw new IndexOutOfRangeException();
+					throw new ArgumentOutOfRangeException();
 			}
 		}
 
-		public string PluginName { get { return MagicHomeOutputPlugin.PluginName; } }
+		public string PluginName
+		{
+			get { return MagicHomeOutputPlugin.PluginName; }
+		}
 
 		public override string ToString()
 		{

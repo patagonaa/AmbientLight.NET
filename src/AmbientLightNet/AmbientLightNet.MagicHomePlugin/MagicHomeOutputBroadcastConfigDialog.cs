@@ -83,7 +83,7 @@ namespace AmbientLightNet.MagicHomePlugin
 			{
 				if (DialogResult == DialogResult.OK)
 				{
-					return new MagicHomeLedOutput
+					return new MagicHomeLedOutputInfo
 					{
 						MacAddress = ((DeviceFindResult) devicesList.SelectedItem).MacAddress,
 						DeviceType = ((KeyValuePair<DeviceType, string>)deviceTypesList.SelectedItem).Key,
@@ -94,7 +94,7 @@ namespace AmbientLightNet.MagicHomePlugin
 			}
 			set
 			{
-				var magicHomeOutputInfo = value as MagicHomeLedOutput;
+				var magicHomeOutputInfo = value as MagicHomeLedOutputInfo;
 				if(magicHomeOutputInfo == null)
 					return;
 				_selectedType = magicHomeOutputInfo.DeviceType;

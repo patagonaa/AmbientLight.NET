@@ -83,7 +83,7 @@
       <DependentUpon>MagicHomeOutputConfigDialog.cs</DependentUpon>
     </Compile>
     <Compile Include="MagicHomeOutputService.cs" />
-    <Compile Include="MagicHomeLedOutput.cs" />
+    <Compile Include="MagicHomeLedOutputInfo.cs" />
     <Compile Include="MagicHomeOutputPlugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

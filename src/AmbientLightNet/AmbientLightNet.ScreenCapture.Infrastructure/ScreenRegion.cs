@@ -1,17 +1,15 @@
-﻿using System.Drawing;
-
-namespace AmbientLightNet.ScreenCapture.Infrastructure
+﻿namespace AmbientLightNet.ScreenCapture.Infrastructure
 {
 	public class ScreenRegion
 	{
-		public ScreenRegion(string screenName, RectangleF rectangle)
+		public ScreenRegion(string screenName, RectangleFSerializable rectangle)
 		{
 			ScreenName = screenName;
 			Rectangle = rectangle;
 		}
 
 		public string ScreenName { get; private set; }
-		public RectangleF Rectangle { get; private set; }
+		public RectangleFSerializable Rectangle { get; private set; }
 
 		public override string ToString()
 		{

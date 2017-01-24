@@ -7,39 +7,38 @@ using System.Net;
 
 namespace AmbientLightNet.MagicHomePlugin
 {
-	public class MagicHomeOutputService : OutputService<MagicHomeLedOutput>
+	public class MagicHomeOutputService : SimpleOutputService<MagicHomeLedOutputInfo>
 	{
 		private Device _device;
 
-		public override void Initialize(MagicHomeLedOutput outputType)
+		public override void Initialize(MagicHomeLedOutputInfo outputInfo)
 		{
 			IPAddress ip;
 			int port = 5577;
 
-			switch (outputType.AddressType)
+			switch (outputInfo.AddressType)
 			{
 				case AddressType.MacAddress:
-					DeviceFindResult foundDevice = DeviceFinder.FindDevices().FirstOrDefault(x => x.MacAddress.Equals(outputType.MacAddress));
+					DeviceFindResult foundDevice = DeviceFinder.FindDevices().FirstOrDefault(x => x.MacAddress.Equals(outputInfo.MacAddress));
 					if (foundDevice == null)
-						throw new Exception(string.Format("device with mac {0} could not be found", outputType.MacAddress));
+						throw new Exception(string.Format("device with mac {0} could not be found", outputInfo.MacAddress));
 					ip = foundDevice.IpAddress;
 					break;
 
 				case AddressType.IpAddress:
-					ip = outputType.IPAddress;
-					if (outputType.Port.HasValue)
-						port = outputType.Port.Value;
+					ip = outputInfo.IPAddress;
+					if (outputInfo.Port.HasValue)
+						port = outputInfo.Port.Value;
 					break;
 				default:
 					throw new IndexOutOfRangeException();
 			}
 
-			_device = new Device(new IPEndPoint(ip, port), outputType.DeviceType);
+			_device = new Device(new IPEndPoint(ip, port), outputInfo.DeviceType);
 			_device.TurnOn();
-			Output((ColorF) Color.Black);
 		}
 
-		public override void Output(ColorF colorF)
+		protected override void Output(ColorF colorF)
 		{
 			var color = (Color) colorF;
 
