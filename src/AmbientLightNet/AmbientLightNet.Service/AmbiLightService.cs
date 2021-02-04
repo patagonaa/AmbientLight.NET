@@ -82,7 +82,7 @@ namespace AmbientLightNet.Service
 				_screenCaptureService.Dispose();
 
 			_screenCaptureService = _screenCaptureServiceProvider.Provide(true);
-			
+
 			List<IOutputPlugin> plugins = OutputPlugins.GetAvailablePlugins();
 
 			List<ScreenRegionOutput> regions = config.RegionsToOutput;
@@ -141,20 +141,20 @@ namespace AmbientLightNet.Service
 								Config = new Dictionary<string, object>
 								{
 									{"factorR", "1"},
-									{"factorG", "0.9"},
-									{"factorB", "0.4"}
+									{"factorG", "1"},
+									{"factorB", "0.9"}
 								}
 							},
-							new ColorTransformerConfig
-							{
-								Type = typeof (GammaColorTransformer),
-								Config = new Dictionary<string, object>
-								{
-									{"gammaR", "1"},
-									{"gammaG", "1.2"},
-									{"gammaB", "1.2"}
-								}
-							},
+							//new ColorTransformerConfig
+							//{
+							//	Type = typeof (GammaColorTransformer),
+							//	Config = new Dictionary<string, object>
+							//	{
+							//		{"gammaR", "1"},
+							//		{"gammaG", "1.2"},
+							//		{"gammaB", "1.2"}
+							//	}
+							//},
 							new ColorTransformerConfig
 							{
 								Type = typeof (ThresholdColorTransformer),
@@ -202,7 +202,7 @@ namespace AmbientLightNet.Service
 		private void MainLoop()
 		{
 			_running = true;
-			
+
 			const int maxFps = 65;
 
 			TimeSpan minWaitTime = TimeSpan.FromMilliseconds(1000d / maxFps);
@@ -221,7 +221,7 @@ namespace AmbientLightNet.Service
 
 					Task<IList<CaptureResult>> captureTask = Task.Run(() => _screenCaptureService.CaptureScreenRegions(_screenRegions, 10000));
 					//Task<IList<CaptureResult>> captureTask = Task.FromResult(_screenCaptureService.CaptureScreenRegions(_screenRegions, null));
-					
+
 					while (_running)
 					{
 						try
@@ -244,7 +244,7 @@ namespace AmbientLightNet.Service
 						}
 
 						var utcNow = DateTime.UtcNow;
-						
+
 						var toCommit = new HashSet<OutputService>(new ReferenceComparer<OutputService>());
 
 						foreach (RegionConfiguration regionConfig in _regionConfigurations)
@@ -267,7 +267,7 @@ namespace AmbientLightNet.Service
 
 					if (!captureTask.IsFaulted && _running)
 						HandleCaptureResults(captureTask.Result);
-					
+
 					DateTime endDt = DateTime.UtcNow;
 
 					var timeSpan = (endDt - startDt);

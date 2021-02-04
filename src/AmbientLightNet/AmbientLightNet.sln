@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30804.86
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.Configurator", "AmbientLightNet.Configurator\AmbientLightNet.Configurator.csproj", "{E65195F7-1173-4B13-A171-D94076CFD3C6}"
 EndProject
@@ -32,6 +32,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.DesktopDuplicationScreenCapture", "AmbientLightNet.DesktopDuplicationScreenCapture\AmbientLightNet.DesktopDuplicationScreenCapture.csproj", "{F16141E1-E29A-4F07-8AA8-206D027F4B82}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.SerialOutputPlugin", "AmbientLightNet.SerialOutputPlugin\AmbientLightNet.SerialOutputPlugin.csproj", "{62C17166-9D84-4915-9D68-D71A0D4DB3B0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AmbientLightNet.WledOutputPlugin", "AmbientLightNet.WledOutputPlugin\AmbientLightNet.WledOutputPlugin.csproj", "{71A7924B-A9FB-4711-AC91-8240293795EC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -129,6 +131,14 @@ Global
 		{62C17166-9D84-4915-9D68-D71A0D4DB3B0}.Release|Any CPU.Build.0 = Release|Any CPU
 		{62C17166-9D84-4915-9D68-D71A0D4DB3B0}.Release|x64.ActiveCfg = Release|x64
 		{62C17166-9D84-4915-9D68-D71A0D4DB3B0}.Release|x64.Build.0 = Release|x64
+		{71A7924B-A9FB-4711-AC91-8240293795EC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71A7924B-A9FB-4711-AC91-8240293795EC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{71A7924B-A9FB-4711-AC91-8240293795EC}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{71A7924B-A9FB-4711-AC91-8240293795EC}.Debug|x64.Build.0 = Debug|Any CPU
+		{71A7924B-A9FB-4711-AC91-8240293795EC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71A7924B-A9FB-4711-AC91-8240293795EC}.Release|Any CPU.Build.0 = Release|Any CPU
+		{71A7924B-A9FB-4711-AC91-8240293795EC}.Release|x64.ActiveCfg = Release|Any CPU
+		{71A7924B-A9FB-4711-AC91-8240293795EC}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -143,5 +153,9 @@ Global
 		{724DD3BA-7F54-4691-A677-D4ACE4C28ABC} = {267F5E50-D1E4-448E-85D9-AE94EF40CDB8}
 		{F16141E1-E29A-4F07-8AA8-206D027F4B82} = {267F5E50-D1E4-448E-85D9-AE94EF40CDB8}
 		{62C17166-9D84-4915-9D68-D71A0D4DB3B0} = {42A10420-68C9-415E-B97F-C1FEF90DDF2F}
+		{71A7924B-A9FB-4711-AC91-8240293795EC} = {42A10420-68C9-415E-B97F-C1FEF90DDF2F}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {5654921A-C7DB-4E19-B5BA-50E2207F0364}
 	EndGlobalSection
 EndGlobal

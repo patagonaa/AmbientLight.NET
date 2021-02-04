@@ -9,6 +9,9 @@ CALL :copyForAllExecutablesAndConfigs
 SET pluginName=AmbientLightNet.SerialOutputPlugin
 CALL :copyForAllExecutablesAndConfigs
 
+SET pluginName=AmbientLightNet.WledOutputPlugin
+CALL :copyForAllExecutablesAndConfigs
+
 GOTO :end
 
 :copyForAllExecutablesAndConfigs
